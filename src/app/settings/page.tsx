@@ -89,6 +89,7 @@ export default async function SettingsPage() {
   const creditSaverOn = Boolean(
     await getSetting<boolean>("ai.credit_saver.enabled"),
   );
+  const defaultModel = (await getSetting<string>("ai.default_model")) ?? null;
   const connectionMode = await getConnectionMode();
   const aiStatus = await getAiConnectionStatus();
   const mcpStatus = await getMcpStatus();
@@ -572,6 +573,7 @@ export default async function SettingsPage() {
                 <ActiveProviderCard
                   active={activeProvider}
                   configured={configuredKeys}
+                  defaultModel={defaultModel}
                 />
                 <CreditSaverForm initial={creditSaverOn} />
                 <ApiKeysSection configured={configuredKeys} ollamaUrl={ollamaUrl} />
@@ -582,6 +584,7 @@ export default async function SettingsPage() {
               <ActiveProviderCard
                 active={activeProvider}
                 configured={configuredKeys}
+                defaultModel={defaultModel}
               />
               <CreditSaverForm initial={creditSaverOn} />
               <ApiKeysSection configured={configuredKeys} ollamaUrl={ollamaUrl} />

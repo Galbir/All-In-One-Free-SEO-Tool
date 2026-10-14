@@ -16,6 +16,7 @@ function logPreview(text: string): string {
 }
 import { withAiPermit } from "./ai-semaphore";
 import { dispatchProviderCall, defaultModelFor } from "./provider-dispatch";
+import { isModelForProvider } from "./ai-model-presets";
 import { estimateTokens } from "./ai-cost";
 import {
   classifyProviderError,
@@ -233,7 +234,14 @@ export async function callAIResult(opts: AiCallOptions): Promise<AiResult> {
   let text: string | null = null;
   let errorMsg: string | undefined;
 
-  const pickedModel = opts.modelOverride?.trim() || defaultModelFor(active);
+  // Precedence: what this call asked for, then what the user chose in
+  // Settings, then the provider's first preset. The middle one did not
+  // exist, so a preference set anywhere was forgotten on the next call.
+  const savedModel = (await getSetting<string>("ai.default_model"))?.trim();
+  const pickedModel =
+    opts.modelOverride?.trim() ||
+    (savedModel && isModelForProvider(active, savedModel) ? savedModel : "") ||
+    defaultModelFor(active);
 
   // Captured by the dispatch layer when a provider rejects the call.
   // Without this, a retired model id, a bad key, and a network blip all

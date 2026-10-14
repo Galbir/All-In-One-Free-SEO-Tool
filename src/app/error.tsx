@@ -19,7 +19,7 @@ import {
   Home,
   RefreshCw,
 } from "lucide-react";
-import { friendlyError, ghIssueLink } from "@/lib/friendly-error";
+import { friendlyError, ghIssueLink, type ReportEnv } from "@/lib/friendly-error";
 
 export default function PageError({
   error,
@@ -28,14 +28,39 @@ export default function PageError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Collected rather than requested. The previous version pre-filled an
+  // issue asking the reporter to run `git rev-parse` and `node -v`, and
+  // issue #31 came back with every field untouched — which is what
+  // anyone does when their app has just broken.
+  const [env, setEnv] = useState<ReportEnv | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/errors/env")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setEnv({
+          ...data,
+          userAgent:
+            typeof navigator !== "undefined" ? navigator.userAgent : null,
+          digest: error.digest ?? null,
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [error]);
+
   const fe = useMemo(
     () =>
       friendlyError(
         error.message || "Unknown error",
         "page-error-boundary",
         error.stack,
+        env ?? { digest: error.digest ?? null },
       ),
-    [error],
+    [error, env],
   );
   const issueUrl = useMemo(() => ghIssueLink(fe), [fe]);
   const [showRaw, setShowRaw] = useState(false);
@@ -48,6 +73,12 @@ export default function PageError({
       body: JSON.stringify({
         message: error.message,
         stack: error.stack,
+        // Without this the row is unmatchable. In production Next gives
+        // the browser a redacted message and a digest; the real error is
+        // logged server-side against the same digest by onRequestError.
+        // Issue #31 arrived with neither, which is why it could not be
+        // diagnosed at all.
+        digest: error.digest ?? null,
         context: "page-error-boundary",
         url: typeof window !== "undefined" ? location.href : null,
       }),

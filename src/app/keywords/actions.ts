@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { keywords } from "@/db/schema";
 import { researchKeywords } from "@/lib/keyword-research";
+import { normaliseCountry } from "@/lib/countries";
 
 export type ResearchActionResult =
   | {
@@ -30,9 +31,9 @@ export async function researchAction(
   formData: FormData,
 ): Promise<ResearchActionResult> {
   const seed = String(formData.get("seed") ?? "").trim();
-  const country = String(formData.get("country") ?? "US")
-    .trim()
-    .toUpperCase();
+  // normaliseCountry maps the "UK" the old form used onto GB, and
+  // refuses anything a search engine would not accept.
+  const country = normaliseCountry(String(formData.get("country") ?? "US"));
   const expand = formData.get("expand") === "on";
   const modeRaw = String(formData.get("mode") ?? "none");
   const mode: "none" | "alphabet" | "lsi" =

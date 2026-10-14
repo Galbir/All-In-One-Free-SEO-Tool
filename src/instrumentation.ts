@@ -44,3 +44,54 @@ export async function register() {
     console.error("[instrumentation] scheduler failed to start:", err);
   }
 }
+
+/**
+ * The real reason a page failed, kept where the owner can read it.
+ *
+ * Next redacts server errors in production. The browser is handed only:
+ *
+ *   "An error occurred in the Server Components render. The specific
+ *    message is omitted in production builds to avoid leaking sensitive
+ *    details. A digest property is included..."
+ *
+ * That is correct for a public SaaS and actively unhelpful here, where
+ * the person running the server and the person seeing the error are the
+ * same person. Issue #31 was filed with exactly that text and nothing
+ * else — no message, no stack, no digest — because the real error was
+ * only ever written to a terminal nobody was watching.
+ *
+ * This hook receives the unredacted error plus the digest the browser
+ * was given, so the two can be matched up: the error page shows a
+ * digest, Settings → Errors has the row with the same digest and the
+ * actual message.
+ *
+ * Next calls this for every server-side error, so it must never throw
+ * and never be slow — logError already swallows its own failures.
+ */
+export async function onRequestError(
+  error: unknown,
+  request: { path?: string; method?: string; headers?: Record<string, string | undefined> },
+  context: { routerKind?: string; routePath?: string; routeType?: string },
+) {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  try {
+    const { logError } = await import("./lib/error-log");
+    const digest =
+      typeof error === "object" && error !== null && "digest" in error
+        ? String((error as { digest?: unknown }).digest ?? "")
+        : "";
+
+    // The digest goes in the context rather than the message, so
+    // de-duplication still groups repeats of the same fault together —
+    // Next issues a fresh digest per occurrence.
+    const where = context.routePath || request.path || "unknown route";
+    await logError({
+      source: "server",
+      context: digest ? `${where} · digest ${digest}` : where,
+      error,
+      url: request.path ?? null,
+    });
+  } catch {
+    // Never let error reporting become the error.
+  }
+}

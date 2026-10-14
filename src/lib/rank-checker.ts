@@ -1,6 +1,7 @@
 import { type Page } from "playwright";
 import { withBrowserContext } from "./browser-pool";
 import { captchaUserMessage, detectCaptcha, emptyResultsReason } from "./captcha-detect";
+import { normaliseCountry } from "./countries";
 
 export type RankCheckResult = {
   query: string;
@@ -246,7 +247,7 @@ async function checkOnGoogle(
       const start = pageIndex * GOOGLE_RESULTS_PER_PAGE;
       const url =
         `https://www.google.com/search?q=${encodeURIComponent(finalQuery)}` +
-        `&hl=${encodeURIComponent(lang)}&gl=${country}&pws=0` +
+        `&hl=${encodeURIComponent(lang)}&gl=${normaliseCountry(country)}&pws=0` +
         (start > 0 ? `&start=${start}` : "");
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
       // small delay so client-side hydration has a chance to render

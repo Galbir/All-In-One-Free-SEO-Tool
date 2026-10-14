@@ -6,46 +6,8 @@ import { ExternalLink, Loader2, Target } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { checkRank, type RankWhereState } from "./actions";
 import { RecentRuns } from "@/components/recent-runs";
+import { CountrySelect } from "@/components/country-select";
 
-// Quick country picker — most useful for SEO work
-const COUNTRIES = [
-  { code: "US", name: "United States" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "CA", name: "Canada" },
-  { code: "AU", name: "Australia" },
-  { code: "IN", name: "India" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "ES", name: "Spain" },
-  { code: "IT", name: "Italy" },
-  { code: "NL", name: "Netherlands" },
-  { code: "BR", name: "Brazil" },
-  { code: "MX", name: "Mexico" },
-  { code: "AR", name: "Argentina" },
-  { code: "JP", name: "Japan" },
-  { code: "KR", name: "South Korea" },
-  { code: "CN", name: "China" },
-  { code: "HK", name: "Hong Kong" },
-  { code: "SG", name: "Singapore" },
-  { code: "AE", name: "UAE" },
-  { code: "SA", name: "Saudi Arabia" },
-  { code: "TR", name: "Turkey" },
-  { code: "IL", name: "Israel" },
-  { code: "ZA", name: "South Africa" },
-  { code: "NG", name: "Nigeria" },
-  { code: "IE", name: "Ireland" },
-  { code: "SE", name: "Sweden" },
-  { code: "NO", name: "Norway" },
-  { code: "DK", name: "Denmark" },
-  { code: "FI", name: "Finland" },
-  { code: "PL", name: "Poland" },
-  { code: "PH", name: "Philippines" },
-  { code: "ID", name: "Indonesia" },
-  { code: "MY", name: "Malaysia" },
-  { code: "TH", name: "Thailand" },
-  { code: "VN", name: "Vietnam" },
-  { code: "NZ", name: "New Zealand" },
-];
 
 export default function RankWherePage() {
   const [state, formAction, pending] = useActionState<RankWhereState, FormData>(
@@ -90,17 +52,10 @@ export default function RankWherePage() {
         <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Country</span>
-            <select
-              name="country"
+            <CountrySelect
               defaultValue="US"
               className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm"
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Scan depth</span>

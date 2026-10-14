@@ -1,5 +1,6 @@
 import { withBrowserContext } from "./browser-pool";
 import { captchaUserMessage, detectCaptcha } from "./captcha-detect";
+import { normaliseCountry } from "./countries";
 
 /**
  * Scrapes a Google SERP for everything an SEO actually wants to see:
@@ -96,7 +97,7 @@ export async function scanSerp(opts: SerpScanInput): Promise<SerpScanOutput> {
     const topN = opts.topN ?? 20;
     const url = `https://www.google.com/search?q=${encodeURIComponent(
       opts.query,
-    )}&hl=en&gl=${country}&pws=0&num=${topN}`;
+    )}&hl=en&gl=${normaliseCountry(country)}&pws=0&num=${topN}`;
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForTimeout(900);

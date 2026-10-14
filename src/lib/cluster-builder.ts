@@ -15,6 +15,7 @@
 
 import { callAI, lastAiFailure } from "./ai-call";
 import { scanSerp } from "./serp-scanner";
+import { languageForCountry, normaliseCountry } from "./countries";
 
 const USER_AGENT =
   "Mozilla/5.0 (compatible; SeoToolBot/1.0; +https://example.com/bot)";
@@ -249,7 +250,7 @@ async function fetchAutocomplete(
   await Promise.all(
     prefixes.map(async (p) => {
       const q = `${topic}${p}`;
-      const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=en&gl=${country.toLowerCase()}&q=${encodeURIComponent(q)}`;
+      const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=${languageForCountry(country)}&gl=${normaliseCountry(country).toLowerCase()}&q=${encodeURIComponent(q)}`;
       try {
         const res = await fetch(url, {
           headers: { "user-agent": USER_AGENT },

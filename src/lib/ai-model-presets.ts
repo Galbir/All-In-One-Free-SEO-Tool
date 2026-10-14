@@ -371,3 +371,20 @@ export const PROVIDER_LABEL: Record<ActiveProvider, string> = {
   together: "Together AI",
   github: "GitHub Models",
 };
+
+/**
+ * Does this model belong to this provider?
+ *
+ * Guards the saved default: a model chosen while Gemini was active must
+ * not be sent to Anthropic after the user switches provider. Sending it
+ * would fail with a provider error that reads like a broken key rather
+ * than a stale preference.
+ */
+export function isModelForProvider(
+  provider: ActiveProvider,
+  model: string,
+): boolean {
+  const id = model.trim();
+  if (!id) return false;
+  return (MODEL_PRESETS[provider] ?? []).some((m) => m.id === id);
+}

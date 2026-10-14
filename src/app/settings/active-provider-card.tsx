@@ -7,6 +7,8 @@ import {
   type Provider,
 } from "@/lib/api-providers";
 import { setActiveProvider } from "./key-actions";
+import { DefaultModelForm } from "./default-model-form";
+import type { ActiveProvider } from "@/lib/api-keys";
 
 const tierTone: Record<"free" | "free-tier" | "paid", string> = {
   free: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
@@ -17,9 +19,12 @@ const tierTone: Record<"free" | "free-tier" | "paid", string> = {
 export function ActiveProviderCard({
   active,
   configured,
+  defaultModel,
 }: {
   active: string | null;
   configured: Record<string, boolean>;
+  /** The model saved in settings, or null for the provider's default. */
+  defaultModel?: string | null;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -129,6 +134,15 @@ export function ActiveProviderCard({
           );
         })}
       </div>
+
+      {/* The answer to "how do I set which model to use". It sits with
+          the provider because the two only make sense together. */}
+      {active && (
+        <DefaultModelForm
+          provider={active as ActiveProvider}
+          initial={defaultModel ?? null}
+        />
+      )}
     </div>
   );
 }

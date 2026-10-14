@@ -1,3 +1,5 @@
+import { languageForCountry, normaliseCountry } from "./countries";
+
 export type Intent = "informational" | "commercial" | "transactional" | "navigational";
 
 export type KeywordSuggestion = {
@@ -68,7 +70,11 @@ async function fetchSuggestions(
   query: string,
   country: string,
 ): Promise<string[]> {
-  const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=en&gl=${encodeURIComponent(country.toLowerCase())}&q=${encodeURIComponent(query)}`;
+  // hl was hardcoded to "en" while gl followed the country, so a German
+  // client got German-located suggestions in English — measured on
+  // "zahnarzt": two of the top six came back as "... near me".
+  const hl = languageForCountry(country);
+  const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=${encodeURIComponent(hl)}&gl=${encodeURIComponent(normaliseCountry(country).toLowerCase())}&q=${encodeURIComponent(query)}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6_000);
   try {
