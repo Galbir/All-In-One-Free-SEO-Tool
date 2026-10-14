@@ -43,6 +43,15 @@ export type SettingKey =
   | "agent.level_chosen"
   // Bearer token an edge worker authenticates with. See edge-token.ts.
   | "edge.token"
+  /**
+   * The model to use when a caller does not name one.
+   *
+   * Without this, every AI feature silently used the first preset for
+   * the active provider, and the only way to choose anything else was a
+   * dropdown inside three chat screens that was not remembered. A user
+   * asked how to set the model in settings; there was no answer.
+   */
+  | "ai.default_model"
   | "api.openai"
   | "api.anthropic"
   | "api.gemini"

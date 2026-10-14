@@ -70,3 +70,15 @@ export async function testWebhook(
     message: `Test sent successfully (HTTP ${result.status}, ${result.kind} format).`,
   };
 }
+
+/**
+ * Remember which model the AI features should use.
+ *
+ * An empty string clears it, which falls back to the provider's first
+ * preset — the behaviour before this setting existed.
+ */
+export async function saveDefaultModel(model: string): Promise<void> {
+  const trimmed = String(model ?? "").trim().slice(0, 120);
+  await setSetting("ai.default_model", trimmed);
+  revalidatePath("/settings");
+}

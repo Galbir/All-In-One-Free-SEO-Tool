@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Term } from "@/components/ui/term";
 import { researchAction, trackKeyword, type ResearchActionResult } from "./actions";
+import { CountrySelect } from "@/components/country-select";
 
 const sources = [
   { value: "google", label: "Google", icon: Globe, hint: "Autocomplete" },
@@ -33,16 +34,6 @@ const intentTone: Record<string, string> = {
   navigational: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
 };
 
-const countries = [
-  { code: "US", label: "United States" },
-  { code: "UK", label: "United Kingdom" },
-  { code: "IN", label: "India" },
-  { code: "CA", label: "Canada" },
-  { code: "AU", label: "Australia" },
-  { code: "DE", label: "Germany" },
-  { code: "FR", label: "France" },
-  { code: "ES", label: "Spain" },
-];
 
 export function ResearchForm({
   clients,
@@ -106,18 +97,10 @@ export function ResearchForm({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="country">Country</Label>
-            <select
-              id="country"
-              name="country"
+            <CountrySelect
               defaultValue={state?.ok ? state.country : "US"}
-              className="flex h-9 w-32 rounded-md border border-white/10 bg-card/60 px-3 py-1 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-            >
-              {countries.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} · {c.label}
-                </option>
-              ))}
-            </select>
+              className="flex h-9 w-44 rounded-md border border-white/10 bg-card/60 px-3 py-1 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mode">Expansion</Label>

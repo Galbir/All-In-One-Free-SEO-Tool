@@ -218,6 +218,8 @@ export function friendlyError(
   raw: string,
   context?: string,
   stack?: string,
+  /** Collected by the caller, so a report needs nothing typed in. */
+  env?: ReportEnv,
 ): FriendlyError {
   const found = rules.find((r) => r.match.test(raw));
   if (found) {
@@ -225,7 +227,7 @@ export function friendlyError(
     if (!fe.githubIssue) {
       fe.githubIssue = {
         title: `[Error] ${fe.title}`,
-        body: buildIssueBody(raw, context, stack, fe.title),
+        body: buildIssueBody(raw, context, stack, fe.title, env),
       };
     }
     return fe;
@@ -244,16 +246,28 @@ export function friendlyError(
     ],
     githubIssue: {
       title: `[Error] ${raw.slice(0, 80)}`,
-      body: buildIssueBody(raw, context, stack, "Unknown error"),
+      body: buildIssueBody(raw, context, stack, "Unknown error", env),
     },
   };
 }
+
+/** What the machine knows about itself, so nobody has to type it. */
+export type ReportEnv = {
+  version?: string | null;
+  commit?: string | null;
+  node?: string | null;
+  platform?: string | null;
+  mode?: string | null;
+  userAgent?: string | null;
+  digest?: string | null;
+};
 
 function buildIssueBody(
   raw: string,
   context: string | undefined,
   stack: string | undefined,
   title: string,
+  env?: ReportEnv,
 ): string {
   return [
     `**What went wrong**`,
@@ -263,16 +277,27 @@ function buildIssueBody(
     "```",
     raw.slice(0, 800),
     "```",
+    // In production Next replaces the real message with a notice and a
+    // digest. The digest is the only way to find the actual error in
+    // Settings -> Errors, where onRequestError records it.
+    env?.digest ? `**Digest** \`${env.digest}\` — find this in Settings → Errors for the real message
+` : "",
     "",
     context ? `**Where**\n${context}\n` : "",
     stack
       ? `**Stack (first 30 lines)**\n\`\`\`\n${stack.split("\n").slice(0, 30).join("\n")}\n\`\`\`\n`
       : "",
     `**My setup**`,
-    `- App version: (run \`git rev-parse --short HEAD\` in the repo)`,
-    `- OS: (Windows / macOS / Linux + version)`,
-    `- Node: (run \`node -v\`)`,
-    `- Browser: (Chrome / Edge / Firefox + version)`,
+    // Filled in from /api/errors/env and the browser, not asked for.
+    // The version that asked the reporter to run `git rev-parse` got
+    // back a report with every field still saying "(run ...)".
+    env?.version || env?.commit
+      ? `- App version: ${env.version ?? "?"}${env.commit ? ` (${env.commit})` : ""}`
+      : `- App version: unknown`,
+    `- OS: ${env?.platform ?? "unknown"}`,
+    `- Node: ${env?.node ?? "unknown"}`,
+    `- Mode: ${env?.mode ?? "unknown"}`,
+    `- Browser: ${env?.userAgent ?? "unknown"}`,
     "",
     `**Anything else?**`,
     `(What you were doing when this happened.)`,
