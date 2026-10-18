@@ -144,3 +144,14 @@ wordpress-plugin/*.zip
 # API key, and why) now lives in the README FAQ.
 docs/competitive-review-*.md
 docs/mcp-connections-plan.md
+
+# Audit prompts for whoever is reviewing this next. Useful to run, but
+# notes to ourselves rather than documentation — scripts/build-release-zip.mjs
+# already excluded them from the user download on exactly that reasoning.
+docs/audits/
+
+# Auto-generated agent instructions (a BEGIN/END stub pointing at a guide
+# inside node_modules). The hand-written agent context, CLAUDE.md, is
+# already local-only; publishing a generated stub while hiding the real
+# thing was the inconsistency.
+docs/AGENTS.md

@@ -323,7 +323,7 @@ Free tier is 25,000 requests/day. If you've blown through that (heavy daily audi
 
 ## WordPress plugin issues
 
-See [`wordpress-plugin/readme.txt`](wordpress-plugin/readme.txt) for full installation steps.
+See [`wordpress-plugin/readme.txt`](../wordpress-plugin/readme.txt) for full installation steps.
 
 ### Plugin won't activate — "PHP version too low"
 
