@@ -405,7 +405,8 @@ The home view when you log in. Multi-client overview, today's priorities, and wh
 ✅ **It can act, and undo** — `run_agent` respects your autonomy setting exactly as the scheduler does, so at the default nothing is written to a live site  
 ✅ **Numbers arrive with their provenance.** A Search Console average and a browser scrape are different measurements, so movement between them is reported as *not comparable* rather than as a confident "up 6 places" that never happened  
 ✅ **stdio by default** — no port, nothing listening, runs as whoever owns the database file. A remote endpoint (`/api/mcp`, Streamable HTTP) exists for connectors and stays off until you generate a token  
-✅ **Read-only tokens for chat apps** — the remote endpoint issues a token that can read everything and change nothing, so a connector cannot edit a live site. Requests are capped per token  
+✅ **Read-only tokens for chat apps** — the remote endpoint issues a token that can read everything and change nothing, so a connector cannot edit a live site. Requests are capped per token
+✅ **Four Claude Code skills** ([`plugins/seo-tool`](plugins/seo-tool/)) — audit report, client setup, fix pass and keyword plan, written as multi-step workflows over the MCP tools rather than one call each. A test fails the build if a skill names a tool the server does not serve  
 
 ### 🔌 Integrations
 ✅ **One setup page** (`/connect`) — every connection in one place, with what each one gets you, what you lose without it, how long it takes, and step-by-step instructions written for someone who's never seen that vendor's console  
@@ -549,6 +550,16 @@ The tool ships with a headless Chromium browser pool that scrapes Google, DuckDu
 <summary><strong>Can I use this for client work as a freelancer or agency?</strong></summary>
 
 Yes. Charging clients for your SEO services using this tool is completely allowed — that's not "selling the software," it's selling your service. You can white-label reports with your own brand, run it on your own infrastructure, and bill clients however you want.
+</details>
+
+<details>
+<summary><strong>Can I use my ChatGPT Plus or Claude Pro subscription instead of pasting an API key?</strong></summary>
+
+Not for the app's own AI features, and this is a billing fact rather than something this tool could work around. ChatGPT Plus and Pro do not include OpenAI API access — they are separate products on separate billing. Claude Pro is the same, and so is Gemini's consumer subscription. Any tool claiming to borrow your chat subscription for its own API calls is misdescribing what it does.
+
+**What you actually want works, pointed the other way round.** Connect your chat app *to* this tool over MCP and your subscription does the thinking while this app supplies the data and performs the actions — no API key from you at all. Claude Code, Claude Desktop and Cursor connect over stdio; the remote endpoint (`/api/mcp`) exists for browser-based connectors and stays off until you generate a token. See [docs/mcp-server.md](docs/mcp-server.md).
+
+For the AI features *inside* the app (blog writer, chat, executive summaries), use a free key — Gemini and Groq both have free tiers — or run Ollama locally and stay fully offline.
 </details>
 
 <details>

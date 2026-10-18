@@ -134,3 +134,13 @@ wordpress-plugin/*.zip
 
 # Built docs site — regenerate with `node docs-site/build.mjs`
 /docs-site/dist
+
+# Internal planning and strategy notes. scripts/build-release-zip.mjs
+# already excluded these from the user download as "notes to ourselves";
+# they were still published on the public repo, and the competitive review
+# directly contradicted the CLAUDE.md note above, which says competitive
+# analysis is kept locally and never committed. The one publicly useful
+# conclusion from the MCP plan (a chat subscription cannot stand in for an
+# API key, and why) now lives in the README FAQ.
+docs/competitive-review-*.md
+docs/mcp-connections-plan.md
