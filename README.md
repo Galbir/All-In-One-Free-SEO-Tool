@@ -2,7 +2,7 @@
 
 # All-In-One Free SEO Tool — Open-Source Alternative to Ahrefs, Semrush, Moz &amp; SE Ranking
 
-### 🚀 The complete free SEO platform. 99 dedicated tools: site audits, rank tracking, keyword research, AI search visibility (ChatGPT · Perplexity · Gemini · AI Overviews), content briefs, backlinks, local SEO, white-label client reports, automations — all in one self-hosted app.
+### 🚀 The complete free SEO platform. 91 dedicated tools: site audits, rank tracking, keyword research, AI search visibility (ChatGPT · Perplexity · Gemini · AI Overviews), content briefs, backlinks, local SEO, white-label client reports, automations — all in one self-hosted app.
 
 ### Built for agencies and freelancers, specifically
 **Team accounts** with per-client access · **generate every client's report in one run**, then review before anything goes out · an **autonomous agent** that fixes what it finds and can undo any of it · an **embeddable audit widget** that turns your site into a lead source · **proposals** built from real audit findings.
@@ -17,7 +17,7 @@
 
 > **Use cases:** free seo tool · all in one seo · ahrefs alternative · semrush alternative · moz alternative · open source seo · self-hosted seo · rank tracker · keyword research · technical seo · local seo · AI search optimization (GEO) · LLM citation tracking · backlink checker · content brief generator · white-label client reports · SEO automation for freelancers and small agencies
 
-[**⚡ Install**](#-install-in-one-command) · [**💰 How much you save**](#-how-much-you-save) · [**📸 Screenshots**](#-screenshots) · [**📦 Full feature list**](#-full-feature-list) · [**🔮 Coming soon**](#-coming-soon) · [**🆘 Troubleshooting**](TROUBLESHOOTING.md) · [**❓ FAQ**](#-faq) · [**📜 License**](#-license)
+[**⚡ Install**](#-install-in-one-command) · [**📖 Documentation**](https://dicecodes.com/seo-tool/) · [**💰 How much you save**](#-how-much-you-save) · [**📸 Screenshots**](#-screenshots) · [**📦 Full feature list**](#-full-feature-list) · [**🔮 Coming soon**](#-coming-soon) · [**🆘 Troubleshooting**](TROUBLESHOOTING.md) · [**❓ FAQ**](#-faq) · [**📜 License**](#-license)
 
 ![SEO Tool dashboard — health score, today's priorities, open tasks, latest audit score](docs/screenshots/01-dashboard.png)
 
@@ -96,11 +96,19 @@ Open <http://localhost:3000>. That's it.
 ### 📦 Or download a release
 
 Prefer a file to a command, or want to pin a version?
-**[Download the latest release zip](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases/latest)** — the
-whole project, no Git needed. Unzip it, then either `docker compose up -d`
-or `npm install && npm run build && npm start`.
 
-Every release ships a `.sha256` next to the zip if you want to verify it.
+**[⬇️ Download v0.6.2 (3.1 MB)](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases/download/v0.6.2/seo-tool-v0.6.2.zip)**
+ · [what changed in v0.6.2](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases/tag/v0.6.2)
+ · [all releases](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases)
+
+Unzip it and **double-click one file** — `SEO Tool - WINDOWS.hta`,
+`SEO Tool - MAC.command` or `SEO Tool - LINUX.sh`. It installs Node for
+you if the machine hasn't got it, and nothing is added to your system
+PATH. No Git, no terminal. (`docker compose up -d` still works if you'd
+rather, and so does `npm install && npm run build && npm start`.)
+
+Each release lists its zip's SHA-256 in the release notes if you want to
+verify the download.
 
 ### 🖱️ After installing: one icon does everything
 
@@ -165,6 +173,33 @@ Railway, Hostinger and DigitalOcean are in
 
 ---
 
+## 📖 Documentation
+
+### **[dicecodes.com/seo-tool](https://dicecodes.com/seo-tool/)**
+
+Every module, every screen, every tool — written out and searchable. The
+tool and screen lists are generated from this repository at build time, so
+they can't drift away from the code.
+
+| | |
+|---|---|
+| [Install](https://dicecodes.com/seo-tool/install.html) | Windows, macOS, Linux, Docker, VPS — and what to do when it won't start |
+| [First run](https://dicecodes.com/seo-tool/first-run.html) | Your first client, first audit, first report |
+| [Every tool](https://dicecodes.com/seo-tool/tools.html) | All 91, what each one reads, and what it gives you back |
+| [Every screen](https://dicecodes.com/seo-tool/screens.html) | What each page in the app is for |
+| [Clients](https://dicecodes.com/seo-tool/clients.html) · [Audits](https://dicecodes.com/seo-tool/audits.html) · [Keywords](https://dicecodes.com/seo-tool/keywords.html) · [Content](https://dicecodes.com/seo-tool/content.html) | The day-to-day modules |
+| [AI visibility](https://dicecodes.com/seo-tool/ai-visibility.html) | Tracking whether ChatGPT, Perplexity, Gemini and AI Overviews cite you |
+| [The agent](https://dicecodes.com/seo-tool/agent.html) · [Automation](https://dicecodes.com/seo-tool/automation.html) | What runs unattended, and how to undo any of it |
+| [Reports](https://dicecodes.com/seo-tool/reports.html) | White-label PDFs, client portals, scheduled delivery |
+| [MCP server](https://dicecodes.com/seo-tool/mcp.html) | Driving all of this from Claude Code or any MCP client |
+| [Backup & restore](https://dicecodes.com/seo-tool/backup.html) · [Troubleshooting](https://dicecodes.com/seo-tool/troubleshooting.html) · [FAQ](https://dicecodes.com/seo-tool/faq.html) | When something needs fixing |
+
+**You don't have to go looking for it.** Every screen in the app has a
+**?** button in its header that opens the page for *that* screen — 192
+of them, each pointed at the right place.
+
+---
+
 ## 📸 Screenshots
 
 > Real screens from the running app. No mockups, no marketing renders.
@@ -174,7 +209,7 @@ Railway, Hostinger and DigitalOcean are in
 
 Every client gets a focused workspace with a 0-100 health score, today's priorities, daily-automation card, and one-click connections to Google Search Console + Analytics 4.
 
-### 99 dedicated tools, organized by SEO discipline
+### 91 dedicated tools, organized by SEO discipline
 ![All Tools page showing 13 category filters — Audits & scoring, Reports, On-page, Schema, Indexing, Speed, Keywords & content, Backlinks & outreach, Local SEO, Competitors & brand, AI visibility, Imports & integrations — and a grid of tool cards including Full SEO health check, SERP feature tracker, Content attack brief, Meta tag generator, SEO code generator](docs/screenshots/03-all-tools.png)
 
 Filter by category or pin your favorites. Each tool is single-purpose and chainable — output of one feeds the next.
@@ -203,7 +238,7 @@ The home view when you log in. Multi-client overview, today's priorities, and wh
 
 ## 📦 Full feature list
 
-> **99 dedicated tools across 14 SEO disciplines.** Every category an SEO professional needs, all in one self-hosted app.
+> **91 dedicated tools across 14 SEO disciplines.** Every category an SEO professional needs, all in one self-hosted app.
 
 ### 🔍 Site audits & technical SEO
 ✅ Full-site crawler with 30+ on-page checks  
@@ -617,7 +652,7 @@ If this tool saves you a ₹10,000+/month Ahrefs subscription, the cheapest way 
 
 **DiceCodes builds full-stack web apps end-to-end — solo, no agency overhead.**
 
-This entire SEO platform (99 dedicated tools, AI daily agent, headless browser pool, white-label reports) was built by one person. If you have a startup idea, an internal tool you wish existed, or a SaaS product to launch — we can build it.
+This entire SEO platform (91 dedicated tools, AI daily agent, headless browser pool, white-label reports) was built by one person. If you have a startup idea, an internal tool you wish existed, or a SaaS product to launch — we can build it.
 
 | What we build | Typical timeline |
 |---|---|

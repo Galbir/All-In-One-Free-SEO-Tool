@@ -2,7 +2,9 @@ import { test, expect } from "@playwright/test";
 
 /**
  * The help button is added once, in PageHeader, and therefore appears on
- * 195 screens. That is exactly the kind of change that is easy to break
+ * 192 screens — 195 render PageHeader, and /docs, /learn and /welcome
+ * opt out because they are the help. That is exactly the kind of change
+ * that is easy to break
  * later without noticing — a header refactor, a stray conditional — and
  * nobody files a bug for "the help link is gone".
  *

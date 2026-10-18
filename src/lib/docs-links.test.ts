@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { DOCS_BASE, DOCS_PAGES, docsPage, docsUrlFor } from "./docs-links";
 
 /**
- * The help button is on 195 screens. A link that 404s from there is
+ * The help button is on 192 screens (195 render PageHeader; /docs,
+ * /learn and /welcome pass noHelp because they are the help). A link that
+ * 404s from there is
  * worse than no link: it is offered at the exact moment someone is
  * already stuck, and it teaches them the docs are not worth trying.
  *
