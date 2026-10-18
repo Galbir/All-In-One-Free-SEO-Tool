@@ -78,6 +78,24 @@ describe("published markdown", () => {
     expect(broken).toEqual([]);
   });
 
+  it("the README pins no release version", async () => {
+    // The download block used to read "Download v0.6.2" and link
+    // .../releases/download/v0.6.2/seo-tool-v0.6.2.zip — the version
+    // written into the link text and the asset path, making the README a
+    // second place the version lives. It drifted in exactly one release:
+    // v0.6.3 shipped and the front page still offered v0.6.2.
+    //
+    // /releases/latest shows the notes and the single zip asset, so there
+    // is no reason for a version to appear here at all. Release notes
+    // under docs/releases/ are exempt — a version is the whole point of
+    // those.
+    const body = await readFile(join(ROOT, "README.md"), "utf8");
+    const pinned = [...body.matchAll(/releases\/(?:download|tag)\/(v?\d+\.\d+\.\d+)/g)].map(
+      (m) => m[0],
+    );
+    expect(pinned).toEqual([]);
+  });
+
   it("every relative link points at a file that is also published", async () => {
     // A link can resolve on the maintainer's disk and 404 for everyone
     // else, which is what happens the moment a linked file is untracked.
