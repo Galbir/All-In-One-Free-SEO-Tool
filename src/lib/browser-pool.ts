@@ -213,8 +213,11 @@ async function getBrowser(): Promise<Browser> {
     // anyone hits on a fresh install.
     if (/executable doesn't exist|please run the following command/i.test(message)) {
       throw new Error(
-        "The headless browser isn't installed yet. Run `npx playwright install chromium` in the tool's folder, then try again. " +
-          "(Rank checks, SERP scraping and screenshots need it; audits and content tools don't.)",
+        "The headless browser isn't installed yet. Open the SEO Tool launcher " +
+          "on your Desktop and press \"Install headless browser\", then try again. " +
+          "(Only rank checks, SERP scraping and screenshots need it — audits and " +
+          "content tools work without it.) " +
+          "If you prefer a terminal: `npx playwright install chromium` in the tool's folder.",
       );
     }
     throw err;

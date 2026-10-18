@@ -51,13 +51,15 @@ describe("the pre-filled bug report", () => {
     expect(body).toContain("Chrome/141");
   });
 
-  it("carries the digest, which is the only way to find the real error", () => {
-    // In production this is all that connects the notice the browser
-    // shows to the unredacted message onRequestError wrote to the log.
+  it("carries the digest when the real error could not be resolved", () => {
+    // The digest alone is what connects the notice the browser shows to
+    // the unredacted message onRequestError wrote. It used to tell the
+    // reader to look it up in Settings; the page now does that itself,
+    // so this path only runs when the lookup came back empty.
     const body = friendlyError(REDACTED, "page-error-boundary", undefined, ENV)
       .githubIssue?.body ?? "";
     expect(body).toContain("3983558387");
-    expect(body).toMatch(/Settings/);
+    expect(body).toMatch(/no matching row|restarted/i);
   });
 
   it("still produces a usable report when nothing could be collected", () => {
@@ -67,5 +69,37 @@ describe("the pre-filled bug report", () => {
     expect(body).not.toContain("undefined");
     expect(body).toContain("unknown");
     expect(body).toContain("Error message");
+  });
+});
+
+describe("resolving a digest to the real error", () => {
+  const REDACTED_MSG =
+    "An error occurred in the Server Components render. The specific message is omitted.";
+
+  it("leads with the real message when it was found", () => {
+    const body =
+      friendlyError(REDACTED_MSG, "page-error-boundary", undefined, {
+        digest: "2102528023",
+        realMessage: "TypeError: Cannot read properties of null (reading 'id')",
+        realStack: "    at getClient (src/lib/clients.ts:42:10)",
+      }).githubIssue?.body ?? "";
+
+    // Issue #36 arrived with a correct digest and no message, which is
+    // a report nobody can act on even though the answer was sitting in
+    // the reporter's own database.
+    expect(body).toContain("The actual server error");
+    expect(body).toContain("Cannot read properties of null");
+    expect(body).toContain("getClient");
+    expect(body).toContain("2102528023");
+  });
+
+  it("says the row is gone rather than implying nothing happened", () => {
+    const body =
+      friendlyError(REDACTED_MSG, "page-error-boundary", undefined, {
+        digest: "999999",
+      }).githubIssue?.body ?? "";
+    expect(body).toContain("999999");
+    expect(body).toMatch(/no matching row|restarted/i);
+    expect(body).not.toContain("The actual server error");
   });
 });

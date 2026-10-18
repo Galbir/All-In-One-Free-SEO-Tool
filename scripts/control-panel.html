@@ -81,6 +81,7 @@
     <h2>Looking after your data</h2>
     <div class="row">
       <button onclick="run('backup')" id="btnBackup">Back up now</button>
+      <button onclick="run('browser')" id="btnBrowser">Install headless browser</button>
       <button onclick="run('shortcut')" id="btnShortcut">Add to Desktop</button>
       <button onclick="run('doctor')" id="btnLogs">Collect info for support</button>
     </div>
@@ -264,6 +265,7 @@ async function run(task, arg) {
   document.getElementById("logTitle").textContent =
     ({ install: "Installing…", update: "Updating…", start: "Starting…",
        stop: "Stopping…", backup: "Backing up…", restore: "Restoring…",
+       browser: "Downloading Chromium…",
        doctor: "Collecting…", shortcut: "Adding shortcut…" })[task] || "Working…";
   document.getElementById("log").textContent = "";
   logCursor = 0;

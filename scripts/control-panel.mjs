@@ -487,6 +487,64 @@ const TASKS = {
   doctor: () => runStep("node", [join(ROOT, "bin", "seo-doctor.cjs")]),
 
   /**
+   * Install the headless browser, without a terminal.
+   *
+   * Rank checks, SERP scraping and screenshots need Chromium. Setup
+   * downloads it, but that step used to end in `2>nul` with no exit
+   * check, so a failed download was invisible and setup still said
+   * "complete". The person then met this, mid-task:
+   *
+   *   "The headless browser isn't installed yet. Run
+   *    `npx playwright install chromium` in the tool's folder"
+   *
+   * Which is a terminal instruction, to somebody who installed this by
+   * double-clicking an icon precisely so they would not need one.
+   * Reported as issue #37.
+   */
+  async browser() {
+    if (await isDockerInstall()) {
+      return refuseOnDocker(
+        "Install the headless browser",
+        "docker compose exec seo npx playwright install chromium",
+      );
+    }
+    if (!existsSync(join(ROOT, "node_modules"))) {
+      log("Nothing is installed yet — press Set up first.");
+      return false;
+    }
+
+    log("Downloading Chromium (about 170 MB). This takes a minute or two.");
+    log("");
+    // runStep's own rule: name the interpreter. On Windows `npx` is
+    // npx.cmd, and spawn without a shell cannot launch a .cmd — the
+    // first version of this failed with "spawn npx ENOENT" and then
+    // blamed the user's internet connection.
+    const ok = IS_WINDOWS
+      ? await runStep("cmd", ["/c", "npx", "--yes", "playwright", "install", "chromium"], {
+          cwd: ROOT,
+        })
+      : await runStep("npx", ["--yes", "playwright", "install", "chromium"], {
+          cwd: ROOT,
+        });
+
+    if (!ok) {
+      log("");
+      log("That did not work. The usual causes, in order:");
+      log("  - no internet, or a proxy that blocks the download");
+      log("  - antivirus holding the file while it is being written");
+      log("  - a full disk (it needs about 400 MB free)");
+      log("");
+      log("Everything except rank checks, SERP scraping and screenshots");
+      log("works without it — audits and content tools are unaffected.");
+      return false;
+    }
+
+    log("");
+    log("Done. Rank checks and SERP scraping will work now.");
+    return true;
+  },
+
+  /**
    * A backup you can actually restore from.
    *
    * This used to prefer the `sqlite3` CLI and fall back to copying

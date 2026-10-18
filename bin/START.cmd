@@ -124,17 +124,36 @@ if not exist ".next\BUILD_ID" (
 )
 
 REM Playwright chromium — needed for rank-checking + SERP scan only.
-REM Don't block on this. If it fails, just warn — main app still runs.
-if not exist "node_modules\playwright\node_modules\@playwright\browser-chromium" (
-  if not exist "node_modules\.pnpm\@playwright+test*\node_modules\@playwright\test" (
-    if "!FIRST_RUN_BOOTSTRAP!"=="1" (
-      ^> ".install-progress" echo 3^|Downloading Playwright Chromium ^(~170 MB^)
-      echo.
-      echo [3/3] Downloading Playwright Chromium ^(~170 MB, 1-2 min^)...
-      echo       ^(used by rank tracker + SERP scanner; skip-safe^)
-      echo.
-      call !PM! exec playwright install chromium 2>nul
-    )
+REM Don't block on this: the app still runs without it. But DO say when
+REM it fails, which the old version could not.
+REM
+REM Three faults here together produced issue #37. The guard tested
+REM node_modules\playwright\...rowser-chromium, and `playwright
+REM install` does not put browsers there (it uses %LOCALAPPDATA%REM ms-playwright), so the check never matched. The call ended in
+REM `2>nul`, so a failed download printed nothing. And nothing read the
+REM exit code, so setup went on to say "complete". The reporter had
+REM installed by double-clicking an icon and was later told to run
+REM `npx playwright install chromium` in a terminal.
+if "!FIRST_RUN_BOOTSTRAP!"=="1" (
+  ^> ".install-progress" echo 3^|Downloading Playwright Chromium ^(~170 MB^)
+  echo.
+  echo [3/3] Downloading Playwright Chromium ^(~170 MB, 1-2 min^)...
+  echo       ^(rank tracker + SERP scanner; the rest works without it^)
+  echo.
+  call !PM! exec playwright install chromium
+  if errorlevel 1 (
+    echo.
+    echo   ---------------------------------------------------------
+    echo   Chromium did not download. Everything else is installed.
+    echo.
+    echo   Rank checks, SERP scraping and screenshots need it; audits
+    echo   and content tools do not. Usual causes: no internet, a
+    echo   proxy, antivirus, or a full disk.
+    echo.
+    echo   To retry without a terminal: open the SEO Tool launcher
+    echo   and press "Install headless browser".
+    echo   ---------------------------------------------------------
+    echo.
   )
 )
 
