@@ -97,9 +97,8 @@ Open <http://localhost:3000>. That's it.
 
 Prefer a file to a command, or want to pin a version?
 
-**[⬇️ Download v0.6.2 (3.1 MB)](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases/download/v0.6.2/seo-tool-v0.6.2.zip)**
- · [what changed in v0.6.2](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases/tag/v0.6.2)
- · [all releases](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases)
+**[⬇️ Download the latest release](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases/latest)** — about 3 MB
+ · [every release](https://github.com/IamRamgarhia/All-In-One-Free-SEO-Tool/releases)
 
 Unzip it and **double-click one file** — `SEO Tool - WINDOWS.hta`,
 `SEO Tool - MAC.command` or `SEO Tool - LINUX.sh`. It installs Node for
