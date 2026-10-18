@@ -46,6 +46,25 @@ export default function PageError({
           digest: error.digest ?? null,
         });
       })
+      .then(() => {
+        // Resolve the digest to the error it stands for. v0.6.1 stored
+        // the real message and then asked the reader to go and look it
+        // up; issue #36 came back with a correct digest and still no
+        // message, because nobody knew to go looking.
+        if (cancelled || !error.digest) return;
+        return fetch(
+          `/api/errors/by-digest?digest=${encodeURIComponent(error.digest)}`,
+        )
+          .then((r) => (r.ok ? r.json() : null))
+          .then((real) => {
+            if (cancelled || !real?.found) return;
+            setEnv((prev) => ({
+              ...(prev ?? {}),
+              realMessage: real.message as string,
+              realStack: (real.stack as string | null) ?? null,
+            }));
+          });
+      })
       .catch(() => undefined);
     return () => {
       cancelled = true;

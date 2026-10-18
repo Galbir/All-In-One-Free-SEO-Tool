@@ -260,6 +260,10 @@ export type ReportEnv = {
   mode?: string | null;
   userAgent?: string | null;
   digest?: string | null;
+  /** The real server message, resolved from the digest. */
+  realMessage?: string | null;
+  /** The first frames of the real stack, for the same reason. */
+  realStack?: string | null;
 };
 
 function buildIssueBody(
@@ -277,11 +281,21 @@ function buildIssueBody(
     "```",
     raw.slice(0, 800),
     "```",
-    // In production Next replaces the real message with a notice and a
-    // digest. The digest is the only way to find the actual error in
-    // Settings -> Errors, where onRequestError records it.
-    env?.digest ? `**Digest** \`${env.digest}\` — find this in Settings → Errors for the real message
-` : "",
+    // The real message first, when it could be resolved. Issue #36 came
+    // in with a correct digest and still no message, because the last
+    // version told the reader where to look instead of looking for them.
+    env?.realMessage
+      ? [
+          `**The actual server error** (resolved from digest \`${env.digest ?? "?"}\`)`,
+          "```",
+          env.realMessage,
+          env.realStack ?? "",
+          "```",
+          "",
+        ].join("\n")
+      : env?.digest
+        ? `**Digest** \`${env.digest}\` — no matching row in this install's error log, so the server has probably restarted since.\n`
+        : "",
     "",
     context ? `**Where**\n${context}\n` : "",
     stack
