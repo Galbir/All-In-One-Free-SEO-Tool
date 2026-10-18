@@ -8,7 +8,7 @@ Public-facing roadmap for the SEO Tool. Community feedback shapes prioritization
 
 ## ✅ Shipped (v1)
 
-The current `main` branch covers everything below. Install via [README → Install in one command](README.md#-install-in-one-command).
+The current `main` branch covers everything below. Install via [README → Install in one command](../README.md#-install-in-one-command).
 
 - Multi-client management, niche detection (5 niches), tech-stack auto-detection (2,500+ technologies via Wappalyzer)
 - Full-site crawler with 30+ on-page checks, severity classification, "fix it for me" wizards
@@ -122,6 +122,6 @@ To save time on issues / PRs for these:
 1. **File an issue** describing the feature or fix you need
 2. **Upvote with reactions** — 👍 on existing issues counts more than duplicate filings
 3. **Comment with your use case** — "I need this because X" is more actionable than "+1"
-4. **Sponsor via [PayPal](https://www.paypal.com/donate/?business=princeramgarhiaa@gmail.com) or [UPI](README.md#-support-this-project)** — sponsored features get queue-jumped
+4. **Sponsor via [PayPal](https://www.paypal.com/donate/?business=princeramgarhiaa@gmail.com) or [UPI](../README.md#-support-this-project)** — sponsored features get queue-jumped
 
 For paid expedited feature development (your feature shipped in a defined timeline), email [Contact@dicecodes.com](mailto:Contact@dicecodes.com?subject=Sponsored%20feature%20development).

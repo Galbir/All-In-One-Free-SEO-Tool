@@ -209,3 +209,35 @@ one.
 
 **Tools don't appear.** Restart the client — the server list is only read
 at startup.
+
+## Skills for Claude Code
+
+`plugins/seo-tool/` is a Claude Code plugin holding four skills. They are
+the difference between having tools and knowing what to do with them — each
+one is a multi-step workflow over the tools above, not a single call:
+
+| Skill | What it does |
+|---|---|
+| `seo-audit-report` | Write a plain-language account of where a site stands, from the crawl, the rankings, the AI-citation checks and the log of what has already been changed. |
+| `seo-client-setup` | Establish what a client's business actually is and record it, so every later keyword, title and report is grounded in it instead of guessed at. |
+| `seo-fix-pass` | Fix what the crawler found on a live site: draft the copy, apply it through the CMS, confirm it took effect, and undo anything that came out wrong. |
+| `seo-keyword-plan` | Decide what a site should target, grounded in the words it uses for what it sells rather than in what its name sounds like. |
+
+The skills are plain markdown under
+`plugins/seo-tool/skills/<name>/SKILL.md`, so the quickest way to use one
+is to open it and follow it, or paste it into a session.
+
+**There is no one-command install yet.** The plugin carries a valid
+`.claude-plugin/plugin.json`, but Claude Code installs plugins from a
+marketplace and this repository has no marketplace manifest, so
+`/plugin install` has nothing to resolve. That is a gap, not a
+deliberate choice.
+
+The plugin deliberately ships **no `mcp.json`**. Every install runs on its
+own machine, port and token, so a committed config would be wrong for
+everybody — Settings → MCP prints the exact command for yours. Connect the
+server first, then ask for `list_clients` to check it answers.
+
+`src/lib/mcp/skills.test.ts` fails the build if a skill references a tool
+this server does not serve, which is the failure mode that would otherwise
+leave an assistant confidently calling something that does not exist.

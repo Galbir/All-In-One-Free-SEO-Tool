@@ -207,12 +207,18 @@ export function PlaybookForm({
             <header className="border-b border-white/[0.06] px-5 py-4">
               <h2 className="text-base font-semibold flex items-center gap-2">
                 <Link2 className="size-4 text-violet-300" />
-                External pages mentioning the competitor (
-                {state.playbook.backlinks.length})
+                Pages linking to the competitor (
+                {state.playbook.backlinks.filter((b) => b.status === "verified").length})
               </h2>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Pages that reference the competitor — many will be dofollow
-                links. Reach out and pitch yourself as a worthy alternative.
+                Each page below was fetched and read, so the anchor text
+                and follow status come from its own markup rather than a
+                guess. Reach out and pitch yourself as the alternative.{" "}
+                <a href="/tools/link-intersect" className="underline hover:no-underline">
+                  Link intersect
+                </a>{" "}
+                does this across several competitors at once and leaves out
+                the sites that already link to you.
               </p>
             </header>
             {state.playbook.backlinks.length === 0 ? (
@@ -235,11 +241,27 @@ export function PlaybookForm({
                     <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
                       {b.domain}
                     </div>
-                    {b.snippet && (
-                      <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-                        {b.snippet}
-                      </p>
-                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                      {b.status === "verified" ? (
+                        <span
+                          className={
+                            b.follow === "dofollow" ? "text-sky-300" : undefined
+                          }
+                          title={b.rel ? `rel="${b.rel}"` : "No rel attribute"}
+                        >
+                          {b.follow} link
+                        </span>
+                      ) : (
+                        <span className="text-amber-300">
+                          mentions them, no link found
+                        </span>
+                      )}
+                      {b.anchorText && (
+                        <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono">
+                          {b.anchorText}
+                        </span>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>

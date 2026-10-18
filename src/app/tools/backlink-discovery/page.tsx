@@ -9,7 +9,7 @@ export default function BacklinkDiscoveryPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
         title="Backlink discovery"
-        description="Free backlink finder. Combines DuckDuckGo, Common Crawl, and a crawl-to-confirm pass that extracts real anchor text + rel. Won't match Ahrefs's index, but for any specific domain it surfaces dozens of real verified links — no key, no quota."
+        description="Free backlink finder for any domain, yours or a competitor's. Searches DuckDuckGo, then fetches each candidate page to confirm a real link and read its anchor text and follow status. Won't match Ahrefs's index — it finds dozens, not thousands — but every link it reports, it has read. No key, no quota."
         icon={Link2}
         accent="violet"
       />

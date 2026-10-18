@@ -3,8 +3,8 @@
 // graph (see tool-capabilities.derive.ts) and by reading the tool copy out
 // of tools-grid.tsx. tool-capabilities.test.ts fails when this drifts.
 //
-// 225 routes · 100 need AI · 70 use a browser.
-// 91 are /tools/* · 34 need AI · 91 carry copy.
+// 226 routes · 100 need AI · 70 use a browser.
+// 92 are /tools/* · 34 need AI · 92 carry copy.
 
 export const TOOL_CAPABILITIES = [
   { route: "/", needsAI: true, aiUsage: "required", usesBrowser: true },
@@ -147,7 +147,7 @@ export const TOOL_CAPABILITIES = [
   { route: "/tools/aio-passage", needsAI: true, aiUsage: "required", usesBrowser: false, title: "AI Overview passage optimizer ⭐", description: "AIs cite 134-167 word self-contained passages. Paste a draft OR analyze a live URL — we split it, score each chunk on length / self-containment / Q→A / specifics / citations, and AI-rewrite low scorers in one batch." },
   { route: "/tools/anchor-distribution", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Anchor-text distribution", description: "Per-URL anchor frequency, internal vs external split, exact-match % over-optimization detection, brand variation check." },
   { route: "/tools/auto-link", needsAI: true, aiUsage: "required", usesBrowser: false, title: "Auto-link suggester (RankMath-style)", description: "Paste content + your internal page list. AI proposes contextual internal links — exact anchor + target — to add." },
-  { route: "/tools/backlink-discovery", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Backlink discovery", description: "DuckDuckGo + Common Crawl + crawl-to-confirm. Finds real verified backlinks with anchor text + rel. Closes the Ahrefs gap as much as is possible without a paid index." },
+  { route: "/tools/backlink-discovery", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Backlink discovery", description: "Point it at any domain, yours or a rival's. Searches DuckDuckGo, then reads each candidate page to confirm a real link and its anchor text and follow status. Dozens, not thousands — but every one has been read." },
   { route: "/tools/bing", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Bing Webmaster Tools", description: "Free Bing organic data — top queries, top pages, crawl issues, URL submission. Add a free Bing API key once." },
   { route: "/tools/branded-split", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Branded vs non-branded GSC split", description: "28-day clicks split with delta vs prior 28 days, separately for branded and non-branded queries. Different drops, different fixes." },
   { route: "/tools/browser-agent", needsAI: true, aiUsage: "required", usesBrowser: true, title: "Browser agent (goal-driven)", description: "Plain-English goal + a starting URL. Headless Chrome reads the page, decides the next step, and narrates each move with a screenshot. Replaces 'I need an API for that site' with browser automation." },
@@ -186,6 +186,7 @@ export const TOOL_CAPABILITIES = [
   { route: "/tools/keyword-difficulty", needsAI: true, aiUsage: "required", usesBrowser: true, title: "Keyword difficulty", description: "Heuristic 0-100 score from real SERP signals — big-brand presence, SERP features, title competitiveness. AI summary if your AI key is configured." },
   { route: "/tools/link-checker", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Link analyzer", description: "Paste any URL → every <a> link classified internal/external + dofollow/nofollow, with anchor text frequency. Critical pre-publish check." },
   { route: "/tools/link-graph", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Internal-link analyser", description: "Crawl + build link graph. Surfaces orphan pages and proposes top-3 source pages for each via TF-IDF cosine similarity. CSV / JSON export." },
+  { route: "/tools/link-intersect", needsAI: false, aiUsage: "none", usesBrowser: false, title: "Link intersect ⭐", description: "Sites that link to your competitors and not to you. Each page is read once and checked against every domain at the same time, so a link you already have is never pitched back to you. Sites linking to two or more rivals rank first." },
   { route: "/tools/link-recommender", needsAI: true, aiUsage: "required", usesBrowser: false, title: "AI internal-link recommender", description: "Crawl your site + AI proposes 3-5 internal links with anchor + target + context snippet. Closes the gap on internal-linking opportunities humans miss." },
   { route: "/tools/llms-txt", needsAI: true, aiUsage: "partial", usesBrowser: false, title: "llms.txt manager", description: "Generate + validate llms.txt — the emerging standard for telling AI crawlers what your site is about." },
   { route: "/tools/local-cwv", needsAI: false, aiUsage: "none", usesBrowser: true, title: "Local Core Web Vitals (no PSI key)", description: "Measures LCP / FCP / CLS / TBT directly from PerformanceObserver. Lighthouse-equivalent 0-100 score, resource breakdown, top fixes by impact. No PageSpeed quota." },

@@ -14,6 +14,7 @@ import { detectTechStack, type DetectionResult } from "./tech-detect";
 import { crawlSite } from "./sitemap-generator";
 import { callAI, lastAiFailure } from "./ai-call";
 import { searchDuckDuckGo } from "./link-prospector";
+import { discoverBacklinks, type FollowStatus } from "./backlink-discovery";
 import { citationsForCountry, type CitationEntry } from "./citations-data";
 
 export type CompetitorPage = {
@@ -31,7 +32,13 @@ export type CompetitorBacklink = {
   url: string;
   domain: string;
   title: string;
-  snippet: string | null;
+  /** What the link to the competitor actually says. */
+  anchorText: string | null;
+  /** The rel attribute as written, or null when there was none. */
+  rel: string | null;
+  follow: FollowStatus;
+  /** "verified" = we read an <a href>. "mention" = the page only names them. */
+  status: "verified" | "mention";
 };
 
 export type CompetitorCitationStatus = {
@@ -109,9 +116,7 @@ export async function reverseEngineerCompetitor(opts: {
         respectRobots: true,
       }),
       fetchHomepage(opts.competitorUrl).catch(() => ""),
-      findCompetitorBacklinks(opts.competitorUrl, competitorDomain).catch(
-        () => [],
-      ),
+      findCompetitorBacklinks(competitorDomain).catch(() => []),
     ]);
 
   // Extract metadata from each crawled URL.
@@ -171,56 +176,40 @@ async function fetchHomepage(url: string): Promise<string> {
 }
 
 /**
- * Best-effort backlink discovery. We use DuckDuckGo to search for pages
- * mentioning the competitor's domain but excluding the domain itself.
- * Many of these will be dofollow links — there's no free way to know for
- * sure without actually fetching each page (we could, but it's slow).
+ * Who links to this competitor, via the shared discovery module.
  *
- * Limitation: this is a *mention finder* more than a true backlink index.
- * That's the same fundamental constraint Ahrefs / Semrush solve with
- * massive crawl infrastructure we can't match for free.
+ * This used to be its own implementation: two DuckDuckGo searches, no
+ * crawl-to-confirm, and a comment asserting that "there's no free way to
+ * know for sure" whether a link was dofollow without fetching each page.
+ * `backlink-discovery.ts` — in this same directory — had been fetching
+ * each page and reading the `rel` the whole time. So the playbook
+ * presented unverified mentions as probable dofollow links while the code
+ * that could answer properly sat unused beside it. Two implementations of
+ * one thing, and the weaker one was the one on screen.
+ *
+ * `limit` is deliberately below the standalone tool's. This runs
+ * alongside a 60-page crawl of the competitor's own site, and
+ * crawl-to-confirm costs one GET per candidate.
  */
 async function findCompetitorBacklinks(
-  competitorUrl: string,
   competitorDomain: string,
 ): Promise<CompetitorBacklink[]> {
   if (!competitorDomain) return [];
 
-  const queries = [
-    `"${competitorDomain}" -site:${competitorDomain}`,
-    `link:${competitorUrl}`,
-  ];
+  const result = await discoverBacklinks({
+    targetDomain: competitorDomain,
+    limit: 12,
+  });
 
-  const seen = new Set<string>();
-  const out: CompetitorBacklink[] = [];
-
-  for (const q of queries) {
-    try {
-      const results = await searchDuckDuckGo(q);
-      for (const r of results) {
-        let domain: string;
-        try {
-          domain = new URL(r.url).hostname.replace(/^www\./, "");
-        } catch {
-          continue;
-        }
-        if (domain === competitorDomain) continue;
-        if (seen.has(r.url)) continue;
-        seen.add(r.url);
-        out.push({
-          url: r.url,
-          domain,
-          title: r.title,
-          snippet: r.snippet,
-        });
-      }
-    } catch {
-      continue;
-    }
-    if (out.length >= 30) break;
-  }
-
-  return out.slice(0, 30);
+  return result.links.map((l) => ({
+    url: l.url,
+    domain: l.domain,
+    title: l.title ?? l.domain,
+    anchorText: l.anchorText,
+    rel: l.rel,
+    follow: l.follow,
+    status: l.status,
+  }));
 }
 
 /**
@@ -391,7 +380,13 @@ async function synthesiseGap(
     return { text: null, error: "No pages crawled — nothing to synthesise." };
   }
 
-  const linkedFrom = backlinks.slice(0, 8).map((b) => b.domain);
+  // Confirmed links only. The prompt previously received every candidate,
+  // including pages that merely named the competitor, under the heading
+  // "Linked from external sites" — so the model was told about links that
+  // had never been shown to exist and wrote recommendations from them.
+  const linkedFrom = Array.from(
+    new Set(backlinks.filter((b) => b.status === "verified").map((b) => b.domain)),
+  ).slice(0, 8);
   const listedAt = citationStatus
     .filter((c) => c.listed === true)
     .map((c) => c.citation.name);
