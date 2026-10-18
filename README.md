@@ -2,7 +2,7 @@
 
 # All-In-One Free SEO Tool — Open-Source Alternative to Ahrefs, Semrush, Moz &amp; SE Ranking
 
-### 🚀 The complete free SEO platform. 91 dedicated tools: site audits, rank tracking, keyword research, AI search visibility (ChatGPT · Perplexity · Gemini · AI Overviews), content briefs, backlinks, local SEO, white-label client reports, automations — all in one self-hosted app.
+### 🚀 The complete free SEO platform. 92 dedicated tools: site audits, rank tracking, keyword research, AI search visibility (ChatGPT · Perplexity · Gemini · AI Overviews), content briefs, backlinks, local SEO, white-label client reports, automations — all in one self-hosted app.
 
 ### Built for agencies and freelancers, specifically
 **Team accounts** with per-client access · **generate every client's report in one run**, then review before anything goes out · an **autonomous agent** that fixes what it finds and can undo any of it · an **embeddable audit widget** that turns your site into a lead source · **proposals** built from real audit findings.
@@ -17,7 +17,7 @@
 
 > **Use cases:** free seo tool · all in one seo · ahrefs alternative · semrush alternative · moz alternative · open source seo · self-hosted seo · rank tracker · keyword research · technical seo · local seo · AI search optimization (GEO) · LLM citation tracking · backlink checker · content brief generator · white-label client reports · SEO automation for freelancers and small agencies
 
-[**⚡ Install**](#-install-in-one-command) · [**📖 Documentation**](https://dicecodes.com/seo-tool/) · [**💰 How much you save**](#-how-much-you-save) · [**📸 Screenshots**](#-screenshots) · [**📦 Full feature list**](#-full-feature-list) · [**🔮 Coming soon**](#-coming-soon) · [**🆘 Troubleshooting**](TROUBLESHOOTING.md) · [**❓ FAQ**](#-faq) · [**📜 License**](#-license)
+[**⚡ Install**](#-install-in-one-command) · [**📖 Documentation**](https://dicecodes.com/seo-tool/) · [**💰 How much you save**](#-how-much-you-save) · [**📸 Screenshots**](#-screenshots) · [**📦 Full feature list**](#-full-feature-list) · [**🔮 Coming soon**](#-coming-soon) · [**🆘 Troubleshooting**](docs/TROUBLESHOOTING.md) · [**❓ FAQ**](#-faq) · [**📜 License**](#-license)
 
 ![SEO Tool dashboard — health score, today's priorities, open tasks, latest audit score](docs/screenshots/01-dashboard.png)
 
@@ -185,7 +185,7 @@ they can't drift away from the code.
 |---|---|
 | [Install](https://dicecodes.com/seo-tool/install.html) | Windows, macOS, Linux, Docker, VPS — and what to do when it won't start |
 | [First run](https://dicecodes.com/seo-tool/first-run.html) | Your first client, first audit, first report |
-| [Every tool](https://dicecodes.com/seo-tool/tools.html) | All 91, what each one reads, and what it gives you back |
+| [Every tool](https://dicecodes.com/seo-tool/tools.html) | All 92, what each one reads, and what it gives you back |
 | [Every screen](https://dicecodes.com/seo-tool/screens.html) | What each page in the app is for |
 | [Clients](https://dicecodes.com/seo-tool/clients.html) · [Audits](https://dicecodes.com/seo-tool/audits.html) · [Keywords](https://dicecodes.com/seo-tool/keywords.html) · [Content](https://dicecodes.com/seo-tool/content.html) | The day-to-day modules |
 | [AI visibility](https://dicecodes.com/seo-tool/ai-visibility.html) | Tracking whether ChatGPT, Perplexity, Gemini and AI Overviews cite you |
@@ -209,7 +209,7 @@ of them, each pointed at the right place.
 
 Every client gets a focused workspace with a 0-100 health score, today's priorities, daily-automation card, and one-click connections to Google Search Console + Analytics 4.
 
-### 91 dedicated tools, organized by SEO discipline
+### 92 dedicated tools, organized by SEO discipline
 ![All Tools page showing 13 category filters — Audits & scoring, Reports, On-page, Schema, Indexing, Speed, Keywords & content, Backlinks & outreach, Local SEO, Competitors & brand, AI visibility, Imports & integrations — and a grid of tool cards including Full SEO health check, SERP feature tracker, Content attack brief, Meta tag generator, SEO code generator](docs/screenshots/03-all-tools.png)
 
 Filter by category or pin your favorites. Each tool is single-purpose and chainable — output of one feeds the next.
@@ -238,7 +238,7 @@ The home view when you log in. Multi-client overview, today's priorities, and wh
 
 ## 📦 Full feature list
 
-> **91 dedicated tools across 14 SEO disciplines.** Every category an SEO professional needs, all in one self-hosted app.
+> **92 dedicated tools across 14 SEO disciplines.** Every category an SEO professional needs, all in one self-hosted app.
 
 ### 🔍 Site audits & technical SEO
 ✅ Full-site crawler with 30+ on-page checks  
@@ -481,7 +481,7 @@ Actively in development for the next 3-6 months. Want one of these sooner? Open 
 | 🔌 **Plugin marketplace** | Community-built extensions. Ship your own audit rule, niche template, report block. |
 | 🧠 **Custom dashboards + chart annotations** | Drag-and-drop dashboards per client. Annotate spikes with notes (algorithm update, big campaign, etc). |
 
-See [ROADMAP.md](ROADMAP.md) for the full v2 + v3 roadmap (~30 items). Community feedback shapes prioritization — file an issue with the 🔮 label.
+See [ROADMAP.md](docs/ROADMAP.md) for the full v2 + v3 roadmap (~30 items). Community feedback shapes prioritization — file an issue with the 🔮 label.
 
 ---
 
@@ -663,7 +663,7 @@ If this tool saves you a ₹10,000+/month Ahrefs subscription, the cheapest way 
 
 **DiceCodes builds full-stack web apps end-to-end — solo, no agency overhead.**
 
-This entire SEO platform (91 dedicated tools, AI daily agent, headless browser pool, white-label reports) was built by one person. If you have a startup idea, an internal tool you wish existed, or a SaaS product to launch — we can build it.
+This entire SEO platform (92 dedicated tools, AI daily agent, headless browser pool, white-label reports) was built by one person. If you have a startup idea, an internal tool you wish existed, or a SaaS product to launch — we can build it.
 
 | What we build | Typical timeline |
 |---|---|

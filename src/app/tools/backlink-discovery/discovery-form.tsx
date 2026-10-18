@@ -47,9 +47,9 @@ export function DiscoveryForm() {
           )}
         </button>
         <p className="text-[11px] text-muted-foreground">
-          Discovery runs three queries against DuckDuckGo, polls Common
-          Crawl when reachable, then crawls each candidate to confirm an
-          actual <code>&lt;a href&gt;</code> + extract anchor text + rel.
+          Discovery runs three queries against DuckDuckGo, then fetches
+          each candidate page to confirm a real <code>&lt;a href&gt;</code>{" "}
+          and read its anchor text and rel. Up to 60 pages per run.
         </p>
       </form>
 
@@ -140,14 +140,27 @@ export function DiscoveryForm() {
                         >
                           {l.status}
                         </span>
+                        {l.status === "verified" && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${
+                              l.follow === "dofollow"
+                                ? "bg-sky-500/15 text-sky-300 ring-sky-500/30"
+                                : "bg-white/5 text-muted-foreground ring-white/10"
+                            }`}
+                            title={
+                              l.rel
+                                ? `rel="${l.rel}"`
+                                : "No rel attribute, so it passes ranking signal"
+                            }
+                          >
+                            {l.follow}
+                          </span>
+                        )}
                         {l.rel && (
                           <span className="rounded-md bg-white/5 px-2 py-0.5 text-muted-foreground ring-1 ring-inset ring-white/10">
                             rel: {l.rel}
                           </span>
                         )}
-                        <span className="text-muted-foreground">
-                          via {l.source === "ddg" ? "DDG" : "Common Crawl"}
-                        </span>
                       </div>
                     </div>
                   </li>

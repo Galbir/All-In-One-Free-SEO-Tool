@@ -15,6 +15,7 @@ import {
   FileText,
   Flame,
   Gauge,
+  GitCompareArrows,
   GitMerge,
   Globe,
   Image as ImageIcon,
@@ -647,7 +648,15 @@ const tools = [
     icon: LinkIcon,
     title: "Backlink discovery",
     description:
-      "DuckDuckGo + Common Crawl + crawl-to-confirm. Finds real verified backlinks with anchor text + rel. Closes the Ahrefs gap as much as is possible without a paid index.",
+      "Point it at any domain, yours or a rival's. Searches DuckDuckGo, then reads each candidate page to confirm a real link and its anchor text and follow status. Dozens, not thousands — but every one has been read.",
+    accent: "violet",
+  },
+  {
+    href: "/tools/link-intersect",
+    icon: GitCompareArrows,
+    title: "Link intersect ⭐",
+    description:
+      "Sites that link to your competitors and not to you. Each page is read once and checked against every domain at the same time, so a link you already have is never pitched back to you. Sites linking to two or more rivals rank first.",
     accent: "violet",
   },
   {

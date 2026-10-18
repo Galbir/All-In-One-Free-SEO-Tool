@@ -190,6 +190,7 @@ const EXPLICIT: Record<string, ToolCategoryId> = {
   "/tools/gsc-coverage": "track",
   "/tools/indexnow": "track",
   "/tools/backlink-discovery": "track",
+  "/tools/link-intersect": "track",
   "/tools/anchor-distribution": "track",
 
   // --- Get found by AI ----------------------------------------------

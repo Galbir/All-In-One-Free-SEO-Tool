@@ -538,7 +538,7 @@ than one screen at a time.</p>`,
 
   {
     slug: "backlinks.html",
-    keywords: "backlink link building outreach referring domains anchor broken link prospect disavow toxic",
+    keywords: "backlink link building outreach referring domains anchor broken link prospect disavow toxic link gap link intersect competitor backlinks dofollow nofollow sponsored ugc who links to my competitor",
     group: "Growth",
     title: "Backlinks and outreach",
     navTitle: "Backlinks",
@@ -557,6 +557,32 @@ you import from Ahrefs Webmaster Tools (free for your own verified sites), links
 crawling, and anything you log yourself.</p>
 <p>If you need a full competitor backlink profile, that needs a paid index. Pair this tool
 with Ahrefs Webmaster Tools for your own sites and you cover most of what matters.</p>`,
+      },
+      {
+        id: "intersect",
+        h2: "Finding sites that link to competitors and not to you",
+        html: `
+<p>This is where link building actually starts, and it is the part that works well without
+an index — because it reads pages rather than querying a database of links.</p>
+<p><strong>Link intersect</strong> takes your domain and up to three competitors. It searches
+for pages that mention each competitor, then fetches every candidate page <em>once</em> and
+asks of that same HTML: does this link to you, and does it link to each competitor? One
+request answers the whole row.</p>
+<p>That ordering matters. The obvious way to build this is to discover your backlinks,
+discover theirs, and subtract — but both lists are best-effort, so any link of yours the
+search happened to miss would come back as a recommendation to go and ask for a link you
+already have. Reading the page removes the guess: "already links to you" comes from the
+page's own markup.</p>
+<p>Sites linking to <strong>two or more</strong> of your competitors rank first. One link is
+a decision; three is a pattern, and a page that already lists three companies doing what you
+do is the one worth writing to. Each row shows the anchor text and whether the link is
+dofollow, read from the <code>rel</code> attribute rather than assumed.</p>
+<div class="note"><strong>It is page-level evidence, not a guarantee</strong>
+<p>A site can link to you from a page these searches never surfaced, so "already links to
+you" means on a page that was actually read. That is still the right granularity for
+outreach: the resource page listing three competitors and not you is the thing you contact.</p></div>
+<p><strong>Backlink discovery</strong> is the same machinery pointed at a single domain —
+yours or a competitor's — when you want the list rather than the gap.</p>`,
       },
       {
         id: "outreach",
