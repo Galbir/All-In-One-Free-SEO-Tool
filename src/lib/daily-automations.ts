@@ -235,12 +235,19 @@ async function generateForSchedule(
     return generateBlogDraft({ client, topicSeed, tone, context });
   }
   if (s.kind === "gbp_post") {
+    const maxChars = clampGbpMaxChars(cfg.max_chars);
+    if (cfg.gbp_source === "woo_product") {
+      const product = await pickWooProduct(s, client);
+      if (!product) return null;
+      return generateGbpProductPost({ client, tone, product, maxChars });
+    }
     return generateGbpPost({
       client,
       topicSeed,
       tone,
       context,
       postType: String(cfg.post_type ?? "STANDARD"),
+      maxChars,
     });
   }
   if (s.kind === "social_post") {
@@ -315,16 +322,108 @@ Output strict JSON only — no markdown fences, no preamble:
   };
 }
 
+/** Schedule's `max_chars` → a sane GBP length (Google caps posts at 1500). */
+function clampGbpMaxChars(raw: unknown): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.max(150, Math.min(1500, n)) : 600;
+}
+
+/** "about 360–600 characters" for a 600 cap */
+function gbpLengthRule(maxChars: number): string {
+  return `${Math.round(maxChars * 0.6)}–${maxChars} characters total, hard limit ${maxChars}`;
+}
+
+/**
+ * Most popular in-stock product this schedule hasn't posted in its last
+ * 20 items, so a daily schedule walks the catalogue instead of repeating
+ * the best-seller.
+ */
+async function pickWooProduct(
+  s: DailySchedule,
+  client: Client,
+): Promise<import("./woo-products").WooProduct | null> {
+  if (!client.url) return null;
+  const { listWooProducts } = await import("./woo-products");
+  const site = /^https?:\/\//i.test(client.url) ? client.url : `https://${client.url}`;
+  const products = (await listWooProducts(site)).filter((p) => p.imageUrl);
+  if (products.length === 0) return null;
+  const recent = await db
+    .select({ payloadJson: publishQueue.payloadJson })
+    .from(publishQueue)
+    .where(eq(publishQueue.scheduleId, s.id))
+    .orderBy(desc(publishQueue.createdAt))
+    .limit(20);
+  const used = new Set(
+    recent.map((r) => (r.payloadJson as { productId?: number } | null)?.productId),
+  );
+  return products.find((p) => !used.has(p.id)) ?? products[0];
+}
+
+async function generateGbpProductPost(opts: {
+  client: Client;
+  tone: string;
+  product: import("./woo-products").WooProduct;
+  maxChars: number;
+}): Promise<GeneratedItem | null> {
+  const { product } = opts;
+  const system = `You write Google Business Profile posts that showcase ONE product from an online shop. Constraints:
+- ${gbpLengthRule(opts.maxChars)}
+- 1–3 short paragraphs separated by a blank line
+- Plain text: no markdown, no bullet symbols, at most 2 hashtags
+- Name the product and the one or two benefits a buyer cares about most
+- Mention the price only if it is given below; never invent prices, discounts or stock levels
+- No [placeholder] brackets, no "we are excited to" filler
+- End by inviting the reader to buy — the post's button opens the product page
+- Write in the same language as the product name and description
+- Tone: ${opts.tone}`;
+  const user = `[Shop]
+${opts.client.name} — ${opts.client.url ?? ""}
+
+[Product]
+Name: ${product.name}
+Price: ${product.price ?? "not shown"}
+Description: ${product.shortDescription || "(none)"}
+
+Output strict JSON only — no markdown fences:
+
+{ "summary": "the post text, paragraphs separated by \\n\\n" }`;
+  const raw = await callAI({
+    system,
+    user,
+    maxTokens: 600,
+    temperature: 0.6,
+    timeoutMs: 60_000,
+    feature: "general",
+    clientId: opts.client.id,
+  });
+  if (!raw) return null;
+  const parsed = extractJson(raw) as { summary?: string } | null;
+  if (!parsed?.summary) return null;
+  const { trimGbpSummary } = await import("./gbp-api");
+  return {
+    title: product.name.slice(0, 80),
+    body: trimGbpSummary(parsed.summary, opts.maxChars),
+    payload: {
+      callToAction: "SHOP",
+      ctaUrl: product.permalink,
+      mediaUrl: product.imageUrl,
+      productId: product.id,
+      postType: "STANDARD",
+    },
+  };
+}
+
 async function generateGbpPost(opts: {
   client: Client;
   topicSeed: string;
   tone: string;
   context: string;
   postType: string;
+  maxChars: number;
 }): Promise<GeneratedItem | null> {
   const system = `You write Google Business Profile posts for local businesses. Constraints:
-- 500–900 characters total (Google caps at 1500; longer posts get cut)
-- 2–4 short paragraphs separated by a blank line — never one wall of text
+- ${gbpLengthRule(opts.maxChars)}
+- 1–3 short paragraphs separated by a blank line — never one wall of text
 - Plain text: no markdown, no bullet symbols, at most 2 hashtags
 - No [placeholder] brackets — write real words or leave the idea out
 - Lead with the benefit, not a greeting
@@ -342,7 +441,7 @@ Post type: ${opts.postType}
 Pick the most timely angle for this business. Output strict JSON only — no markdown fences:
 
 {
-  "summary": "the post text, 500–900 chars, paragraphs separated by \\n\\n",
+  "summary": "the post text, at most ${opts.maxChars} chars, paragraphs separated by \\n\\n",
   "callToAction": "BOOK"|"ORDER"|"SHOP"|"LEARN_MORE"|"SIGN_UP"|"CALL"|null
 }`;
   const raw = await callAI({
@@ -363,7 +462,7 @@ Pick the most timely angle for this business. Output strict JSON only — no mar
   const { trimGbpSummary } = await import("./gbp-api");
   return {
     title: parsed.summary.slice(0, 80),
-    body: trimGbpSummary(parsed.summary),
+    body: trimGbpSummary(parsed.summary, opts.maxChars),
     payload: {
       callToAction: parsed.callToAction ?? null,
       postType: opts.postType,
@@ -667,10 +766,14 @@ async function publishGbp(
   const payload = (item.payloadJson ?? {}) as {
     callToAction?: string | null;
     postType?: string;
+    /** Product posts link the button to the product, not the homepage */
+    ctaUrl?: string | null;
+    mediaUrl?: string | null;
   };
   // Google rejects every CTA except CALL without a url (400 "invalid
   // argument"), so link the client's site; no site → no button.
-  const ctaUrl = toAbsoluteHttpsUrl(client?.url);
+  const ctaUrl =
+    toAbsoluteHttpsUrl(payload.ctaUrl) ?? toAbsoluteHttpsUrl(client?.url);
   const actionType =
     payload.callToAction && payload.callToAction !== ""
       ? (payload.callToAction as
@@ -692,6 +795,7 @@ async function publishGbp(
     locationName,
     summary: item.body ?? "",
     callToAction: cta,
+    mediaUrl: toAbsoluteHttpsUrl(payload.mediaUrl) ?? undefined,
     languageCode: client?.language ?? undefined,
     clientIdScope: item.clientId,
   });

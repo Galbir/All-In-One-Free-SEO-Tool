@@ -358,6 +358,36 @@ export function SchedulesEditor({
                 </span>
               </label>
               <label className="space-y-1 text-xs">
+                <span className="text-muted-foreground">Content</span>
+                <select
+                  name="gbpSource"
+                  defaultValue="topic"
+                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  <option value="topic">Topic post (AI picks the angle)</option>
+                  <option value="woo_product">
+                    Product from the shop (photo + Shop button)
+                  </option>
+                </select>
+                <span className="text-[10px] text-muted-foreground">
+                  Product posts read the WooCommerce catalogue on the
+                  client&apos;s website and rotate through in-stock products.
+                </span>
+              </label>
+              <label className="space-y-1 text-xs">
+                <span className="text-muted-foreground">Post length</span>
+                <select
+                  name="maxChars"
+                  defaultValue="600"
+                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  <option value="300">Short (≤ 300 characters)</option>
+                  <option value="600">Medium (≤ 600 characters)</option>
+                  <option value="1000">Long (≤ 1000 characters)</option>
+                  <option value="1500">Maximum (≤ 1500 characters)</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-xs">
                 <span className="text-muted-foreground">Post type</span>
                 <select
                   name="postType"
@@ -449,6 +479,8 @@ function ScheduleRow({
     tone?: string;
     gbp_location_name?: string;
     post_type?: string;
+    gbp_source?: string;
+    max_chars?: number;
   };
 
   return (
@@ -559,6 +591,15 @@ function ScheduleRow({
           {cfg.tone && (
             <div>
               <span className="text-foreground/80">Tone:</span> {cfg.tone}
+            </div>
+          )}
+          {schedule.kind === "gbp_post" && (
+            <div>
+              <span className="text-foreground/80">Content:</span>{" "}
+              {cfg.gbp_source === "woo_product" ? "Shop product" : "Topic post"}
+              {" · "}
+              <span className="text-foreground/80">Max length:</span>{" "}
+              {cfg.max_chars ?? 600} chars
             </div>
           )}
           {cfg.gbp_location_name && (

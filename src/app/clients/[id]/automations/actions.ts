@@ -24,6 +24,12 @@ export async function createSchedule(
   const tone = String(formData.get("tone") ?? "").slice(0, 200);
   const gbpLocationName = String(formData.get("gbpLocationName") ?? "").slice(0, 200);
   const postType = String(formData.get("postType") ?? "STANDARD");
+  const gbpSource =
+    formData.get("gbpSource") === "woo_product" ? "woo_product" : "topic";
+  const maxChars = Math.max(
+    150,
+    Math.min(1500, Number(formData.get("maxChars") ?? 600) || 600),
+  );
   // Where the approved item ultimately goes:
   //   "local"     — save in the tool's queue; copy/paste yourself (no integration needed)
   //   "wordpress" — publish via WP bridge plugin
@@ -55,13 +61,24 @@ export async function createSchedule(
         "GBP location must look like accounts/…/locations/… — or leave it empty to use the client's listing.",
     };
   }
-  if (kind === "gbp_post" && destination === "gbp" && !gbpLocationName) {
+  if (kind === "gbp_post") {
     const [client] = await db
-      .select({ gbpLocationName: clients.gbpLocationName })
+      .select({ gbpLocationName: clients.gbpLocationName, url: clients.url })
       .from(clients)
       .where(eq(clients.id, clientId))
       .limit(1);
-    if (!isGbpLocationName(client?.gbpLocationName)) {
+    if (gbpSource === "woo_product" && !client?.url) {
+      return {
+        ok: false,
+        error:
+          "Product posts read the shop's WooCommerce catalogue — add the client's website URL first.",
+      };
+    }
+    if (
+      destination === "gbp" &&
+      !gbpLocationName &&
+      !isGbpLocationName(client?.gbpLocationName)
+    ) {
       return {
         ok: false,
         error:
@@ -76,6 +93,8 @@ export async function createSchedule(
   if (kind === "gbp_post") {
     if (gbpLocationName) config.gbp_location_name = gbpLocationName;
     config.post_type = postType;
+    config.gbp_source = gbpSource;
+    config.max_chars = maxChars;
   }
 
   const insert: NewDailySchedule = {
