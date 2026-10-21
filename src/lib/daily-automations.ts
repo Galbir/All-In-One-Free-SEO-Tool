@@ -79,6 +79,7 @@ export async function tickScheduleGeneration(): Promise<{
 
   let generated = 0;
   let skipped = 0;
+  let autoApproved = 0;
   for (const s of due) {
     try {
       const item = await generateForSchedule(s);
@@ -105,6 +106,7 @@ export async function tickScheduleGeneration(): Promise<{
         })
         .where(eq(dailySchedules.id, s.id));
       generated++;
+      if (s.autoPublish) autoApproved++;
     } catch (err) {
       // Schedule a retry one cadence later regardless — don't loop on a
       // permanently-broken schedule.
@@ -125,6 +127,9 @@ export async function tickScheduleGeneration(): Promise<{
       skipped++;
     }
   }
+  // Auto-publish means now, not at the next daily-agent pass (up to 24h
+  // later, and never if the item was generated via "Run now").
+  if (autoApproved > 0) await tickQueuePublish();
   return { generated, skipped };
 }
 
@@ -318,7 +323,10 @@ async function generateGbpPost(opts: {
   postType: string;
 }): Promise<GeneratedItem | null> {
   const system = `You write Google Business Profile posts for local businesses. Constraints:
-- ≤ 1300 characters (Google caps at 1500; leave room)
+- 500–900 characters total (Google caps at 1500; longer posts get cut)
+- 2–4 short paragraphs separated by a blank line — never one wall of text
+- Plain text: no markdown, no bullet symbols, at most 2 hashtags
+- No [placeholder] brackets — write real words or leave the idea out
 - Lead with the benefit, not a greeting
 - Specific over generic — name a service, a season, a price range, an actual menu item
 - No emoji spam (1 emoji max, only if it adds clarity)
@@ -334,7 +342,7 @@ Post type: ${opts.postType}
 Pick the most timely angle for this business. Output strict JSON only — no markdown fences:
 
 {
-  "summary": "the post text, ≤1300 chars",
+  "summary": "the post text, 500–900 chars, paragraphs separated by \\n\\n",
   "callToAction": "BOOK"|"ORDER"|"SHOP"|"LEARN_MORE"|"SIGN_UP"|"CALL"|null
 }`;
   const raw = await callAI({
@@ -352,9 +360,10 @@ Pick the most timely angle for this business. Output strict JSON only — no mar
     callToAction?: string | null;
   } | null;
   if (!parsed || !parsed.summary) return null;
+  const { trimGbpSummary } = await import("./gbp-api");
   return {
     title: parsed.summary.slice(0, 80),
-    body: parsed.summary.slice(0, 1300),
+    body: trimGbpSummary(parsed.summary),
     payload: {
       callToAction: parsed.callToAction ?? null,
       postType: opts.postType,
@@ -609,13 +618,33 @@ async function publishBlog(
   return { ok: true, ref: r.url };
 }
 
+/** `monoweb.ro/` → `https://monoweb.ro/`; null when it isn't a usable URL. */
+function toAbsoluteHttpsUrl(raw: string | null | undefined): string | null {
+  const s = raw?.trim();
+  if (!s) return null;
+  try {
+    const u = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`);
+    return u.hostname.includes(".") ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 async function publishGbp(
   item: PublishQueueItem,
 ): Promise<{ ok: true; ref?: string } | { ok: false; error: string }> {
-  // Location name comes from the schedule's configJson — set once when
-  // the user creates the schedule. Keeps the clients table unchanged
-  // (no new column for this v1).
-  let locationName: string | null = null;
+  // The client's chosen listing (GBP Reviews page) is the default; a
+  // valid per-schedule location overrides it. Invalid schedule values
+  // (e.g. a business name typed by hand) are ignored.
+  const { isGbpLocationName } = await import("./gbp-api");
+  const [client] = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, item.clientId))
+    .limit(1);
+  let locationName: string | null = isGbpLocationName(client?.gbpLocationName)
+    ? client.gbpLocationName
+    : null;
   if (item.scheduleId) {
     const [s] = await db
       .select()
@@ -623,15 +652,15 @@ async function publishGbp(
       .where(eq(dailySchedules.id, item.scheduleId))
       .limit(1);
     const cfg = (s?.configJson ?? {}) as Record<string, unknown>;
-    if (typeof cfg.gbp_location_name === "string") {
-      locationName = cfg.gbp_location_name;
+    if (isGbpLocationName(cfg.gbp_location_name as string | undefined)) {
+      locationName = cfg.gbp_location_name as string;
     }
   }
   if (!locationName) {
     return {
       ok: false,
       error:
-        "GBP location not set on the schedule. Edit the schedule and pick a location.",
+        "No GBP listing chosen for this client. Open GBP → this client → Reviews and pick the listing under \"Which listing\".",
     };
   }
   const { createGbpLocalPost } = await import("./gbp-api");
@@ -639,22 +668,31 @@ async function publishGbp(
     callToAction?: string | null;
     postType?: string;
   };
-  const cta =
+  // Google rejects every CTA except CALL without a url (400 "invalid
+  // argument"), so link the client's site; no site → no button.
+  const ctaUrl = toAbsoluteHttpsUrl(client?.url);
+  const actionType =
     payload.callToAction && payload.callToAction !== ""
-      ? {
-          actionType: payload.callToAction as
-            | "BOOK"
-            | "ORDER"
-            | "SHOP"
-            | "LEARN_MORE"
-            | "SIGN_UP"
-            | "CALL",
-        }
-      : undefined;
+      ? (payload.callToAction as
+          | "BOOK"
+          | "ORDER"
+          | "SHOP"
+          | "LEARN_MORE"
+          | "SIGN_UP"
+          | "CALL")
+      : null;
+  const cta = !actionType
+    ? undefined
+    : actionType === "CALL"
+      ? { actionType }
+      : ctaUrl
+        ? { actionType, url: ctaUrl }
+        : undefined;
   const r = await createGbpLocalPost({
     locationName,
     summary: item.body ?? "",
     callToAction: cta,
+    languageCode: client?.language ?? undefined,
     clientIdScope: item.clientId,
   });
   if (!r.ok) return { ok: false, error: r.error };

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dailySchedules, type NewDailySchedule } from "@/db/schema";
+import { clients, dailySchedules, type NewDailySchedule } from "@/db/schema";
+import { isGbpLocationName } from "@/lib/gbp-api";
 
 export type CreateScheduleState =
   | { ok: true; id: number }
@@ -45,6 +46,28 @@ export async function createSchedule(
     )
   ) {
     return { ok: false, error: "Pick a kind." };
+  }
+
+  if (kind === "gbp_post" && gbpLocationName && !isGbpLocationName(gbpLocationName)) {
+    return {
+      ok: false,
+      error:
+        "GBP location must look like accounts/…/locations/… — or leave it empty to use the client's listing.",
+    };
+  }
+  if (kind === "gbp_post" && destination === "gbp" && !gbpLocationName) {
+    const [client] = await db
+      .select({ gbpLocationName: clients.gbpLocationName })
+      .from(clients)
+      .where(eq(clients.id, clientId))
+      .limit(1);
+    if (!isGbpLocationName(client?.gbpLocationName)) {
+      return {
+        ok: false,
+        error:
+          "This client has no GBP listing yet. Pick it under GBP → this client → Reviews (\"Which listing\"), then create the schedule.",
+      };
+    }
   }
 
   const config: Record<string, unknown> = { destination };

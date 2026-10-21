@@ -191,6 +191,8 @@ function QueueRow({
   const canEdit =
     item.status === "pending_review" || item.status === "approved";
   const canApprove = item.status === "pending_review";
+  const canRetry = item.status === "failed";
+  const canPublishNow = item.status === "approved";
 
   function approve(publishNow: boolean) {
     startTransition(async () => {
@@ -385,6 +387,21 @@ function QueueRow({
           )}
 
           <div className="flex flex-wrap items-center gap-2">
+            {(canRetry || canPublishNow) && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => approve(true)}
+                className="inline-flex h-9 items-center rounded-md bg-emerald-500/15 px-4 text-xs font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50"
+              >
+                {pending ? (
+                  <Loader2 className="mr-2 size-3 animate-spin" />
+                ) : (
+                  <Send className="mr-2 size-3" />
+                )}
+                {canRetry ? "Retry publish" : "Publish now"}
+              </button>
+            )}
             {canApprove && (
               <>
                 <button
