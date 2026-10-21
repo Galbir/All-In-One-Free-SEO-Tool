@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Calendar, Inbox } from "lucide-react";
 import { eq, desc } from "drizzle-orm";
 import { db } from "@/db/client";
-import { clients, dailySchedules, publishQueue } from "@/db/schema";
+import { clients, dailySchedules, keywords, publishQueue } from "@/db/schema";
 import { PageHeader } from "@/components/shell/page-header";
 import { SchedulesEditor } from "./editor";
 
@@ -30,6 +30,12 @@ export default async function ClientAutomationsPage({
     .from(dailySchedules)
     .where(eq(dailySchedules.clientId, clientId))
     .orderBy(desc(dailySchedules.createdAt));
+
+  const trackedKeywords = await db
+    .select({ query: keywords.query })
+    .from(keywords)
+    .where(eq(keywords.clientId, clientId))
+    .then((rows) => [...new Set(rows.map((r) => r.query))]);
 
   const pendingCount = await db
     .select({ id: publishQueue.id })
@@ -69,6 +75,7 @@ export default async function ClientAutomationsPage({
         wpConnected={Boolean(client.wpEndpoint && client.wpKey)}
         gbpUrl={client.gbpUrl ?? null}
         schedules={schedules}
+        trackedKeywords={trackedKeywords}
       />
     </div>
   );

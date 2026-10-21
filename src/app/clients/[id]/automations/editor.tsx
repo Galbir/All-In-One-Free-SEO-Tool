@@ -96,6 +96,7 @@ export function SchedulesEditor({
   wpConnected,
   gbpUrl,
   schedules,
+  trackedKeywords = [],
 }: {
   clientId: number;
   /** Reserved for future per-client title context; kept on the type for parity with the page. */
@@ -103,6 +104,8 @@ export function SchedulesEditor({
   wpConnected: boolean;
   gbpUrl: string | null;
   schedules: DailySchedule[];
+  /** Client's tracked keywords, shown as what "Top keywords" will use */
+  trackedKeywords?: string[];
 }) {
   const [showForm, setShowForm] = useState(schedules.length === 0);
   const [selectedKind, setSelectedKind] = useState<Kind>("blog_draft");
@@ -448,6 +451,10 @@ export function SchedulesEditor({
               )}
               <span className="text-[10px] text-muted-foreground">
                 Used in the text and to choose which products to feature.
+                {keywordsMode === "top" &&
+                  (trackedKeywords.length > 0
+                    ? ` Tracked now: ${trackedKeywords.slice(0, 8).join(", ")}${trackedKeywords.length > 8 ? "…" : ""}`
+                    : " This client has no tracked keywords yet — add some under Tracked keywords.")}
               </span>
             </label>
           )}
