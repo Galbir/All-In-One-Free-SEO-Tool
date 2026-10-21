@@ -138,6 +138,36 @@ export async function createSchedule(
     }
   }
 
+  // Product sources read the shop's public Store API; check it now so a
+  // site without WooCommerce fails here, not silently every day.
+  const usesProducts =
+    (kind === "blog_draft" && blogSource !== "topic") ||
+    (kind === "social_post" && socialSource !== "topic") ||
+    (kind === "gbp_post" && gbpSource === "woo_product");
+  if (usesProducts) {
+    const [client] = await db
+      .select({ url: clients.url })
+      .from(clients)
+      .where(eq(clients.id, clientId))
+      .limit(1);
+    const site = client?.url
+      ? /^https?:\/\//i.test(client.url)
+        ? client.url
+        : `https://${client.url}`
+      : null;
+    try {
+      const { listWooProducts } = await import("@/lib/woo-products");
+      const products = site ? await listWooProducts(site, { perPage: 1 }) : [];
+      if (products.length === 0) throw new Error("no products");
+    } catch {
+      return {
+        ok: false,
+        error:
+          "No WooCommerce shop found on this client's website, so product posts can't work. Pick a topic instead.",
+      };
+    }
+  }
+
   const config: Record<string, unknown> = { destination };
   config.keywords_mode = keywordsMode;
   if (keywordsMode === "custom") config.keywords_custom = keywordsCustom;
