@@ -376,11 +376,6 @@ Output strict JSON only — no markdown fences, no preamble:
   };
 }
 
-/** clients.language defaults to "en", so a .ro shop counts as Romanian */
-function clientLang(client: Client): string {
-  return /\.ro(\/|:|$)/i.test(client.url ?? "") ? "ro" : (client.language ?? "en");
-}
-
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -393,14 +388,9 @@ function escapeHtml(s: string): string {
  * Product photo + price + buttons, as plain HTML using WordPress's core
  * button classes so the theme styles them like any button block.
  */
-function productCardHtml(
-  p: WooProduct,
-  lang: string,
-  buttons: [string, string],
-): string {
-  const ro = lang.toLowerCase().startsWith("ro");
-  const primary = escapeHtml(buttons[0] || (ro ? "Cumpără acum" : "Buy now"));
-  const secondary = escapeHtml(buttons[1] || (ro ? "Vezi detalii" : "See details"));
+function productCardHtml(p: WooProduct, buttons: [string, string]): string {
+  const primary = escapeHtml(buttons[0] || "Buy now");
+  const secondary = escapeHtml(buttons[1] || "See details");
   const url = escapeHtml(p.permalink);
   const name = escapeHtml(p.name);
   const price = p.price
@@ -474,7 +464,9 @@ Output strict JSON only — no markdown fences, no preamble:
   "title": "55-65 char post title that would earn a click in SERP",
   "metaDescription": "140-160 char SEO description",
   "excerpt": "1-sentence WP excerpt (≤180 chars)",
-  "contentHtml": "the full body as HTML with the <!--PRODUCT:n--> markers"
+  "contentHtml": "the full body as HTML with the <!--PRODUCT:n--> markers",
+  "buyLabel": "2-3 word 'buy now' button label in the article's language",
+  "detailsLabel": "2-3 word 'see details' button label in the article's language"
 }`;
   const raw = await callAI({
     system,
@@ -492,20 +484,26 @@ Output strict JSON only — no markdown fences, no preamble:
     metaDescription?: string;
     excerpt?: string;
     contentHtml?: string;
+    buyLabel?: string;
+    detailsLabel?: string;
   } | null;
   if (!parsed || !parsed.title || !parsed.contentHtml) return null;
 
-  const lang = clientLang(opts.client);
+  // Schedule labels win; otherwise the AI's, in the article's language
+  const buttons: [string, string] = [
+    opts.buttons[0] || (parsed.buyLabel ?? "").slice(0, 40),
+    opts.buttons[1] || (parsed.detailsLabel ?? "").slice(0, 40),
+  ];
   const placed = new Set<number>();
   let html = parsed.contentHtml.replace(/<!--\s*PRODUCT:(\d+)\s*-->/g, (_m, n) => {
     const i = Number(n) - 1;
     if (!products[i] || placed.has(i)) return "";
     placed.add(i);
-    return productCardHtml(products[i], lang, opts.buttons);
+    return productCardHtml(products[i], buttons);
   });
   const missing = products.filter((_, i) => !placed.has(i));
   if (missing.length > 0) {
-    html += "\n" + missing.map((p) => productCardHtml(p, lang, opts.buttons)).join("\n");
+    html += "\n" + missing.map((p) => productCardHtml(p, buttons)).join("\n");
   }
   return {
     title: parsed.title.slice(0, 200),
@@ -537,7 +535,7 @@ function gbpLengthRule(maxChars: number): string {
   return `${Math.round(maxChars * 0.6)}–${maxChars} characters total, hard limit ${maxChars}`;
 }
 
-/** Lowercase, no diacritics — "Huse Galaxy" and "huse galaxy" match. */
+/** Lowercase, no diacritics — "Café Crème" and "cafe creme" match. */
 function foldText(s: string): string {
   return s
     .normalize("NFD")
@@ -841,8 +839,6 @@ async function generateSocialProductPost(opts: {
   buttonText: string;
 }): Promise<GeneratedItem | null> {
   const { product } = opts;
-  const ro = clientLang(opts.client).toLowerCase().startsWith("ro");
-  const cta = opts.buttonText || (ro ? "Comandă acum" : "Shop now");
   const system = `You write short social posts that showcase ONE product from an online shop. Make each platform variant distinct:
 - Facebook / Instagram: 2-4 short lines, the main benefit first, 1-3 hashtags at the end
 - X / Twitter: 1-2 punchy lines, ≤220 chars (a link is added after it)
@@ -862,7 +858,7 @@ ${opts.keywords.slice(0, 6).join("; ") || "(none)"}
 
 Output strict JSON only — no markdown fences:
 
-{ "facebook": "…", "x": "…", "linkedin": "…" }`;
+{ "facebook": "…", "x": "…", "linkedin": "…", "ctaLabel": "2-3 word 'shop now' phrase in the posts' language" }`;
   const raw = await callAI({
     system,
     user,
@@ -877,8 +873,10 @@ Output strict JSON only — no markdown fences:
     facebook?: string;
     x?: string;
     linkedin?: string;
+    ctaLabel?: string;
   } | null;
   if (!parsed || (!parsed.facebook && !parsed.x && !parsed.linkedin)) return null;
+  const cta = opts.buttonText || parsed.ctaLabel?.slice(0, 40) || "Shop now";
   const withLink = (t?: string) => (t ? `${t.trim()}\n\n👉 ${cta}: ${product.permalink}` : null);
   const variants = {
     facebook: withLink(parsed.facebook),

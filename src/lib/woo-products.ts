@@ -44,7 +44,7 @@ function formatPrice(
   const minor = p.currency_minor_unit ?? 2;
   const value = Number(amount) / 10 ** minor;
   if (!Number.isFinite(value) || value <= 0) return null;
-  return `${value.toLocaleString("ro-RO", { maximumFractionDigits: minor })} ${p.currency_code ?? ""}`.trim();
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: minor })} ${p.currency_code ?? ""}`.trim();
 }
 
 /**

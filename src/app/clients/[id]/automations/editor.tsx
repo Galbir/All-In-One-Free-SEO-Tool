@@ -380,7 +380,7 @@ export function SchedulesEditor({
                 <span className="text-muted-foreground">Main button text</span>
                 <input
                   name="buttonText"
-                  placeholder="Cumpără acum"
+                  placeholder="Buy now (default: AI writes it in the article's language)"
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </label>
@@ -388,7 +388,7 @@ export function SchedulesEditor({
                 <span className="text-muted-foreground">Second button text</span>
                 <input
                   name="buttonText2"
-                  placeholder="Vezi detalii"
+                  placeholder="See details"
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </label>
@@ -418,7 +418,7 @@ export function SchedulesEditor({
                   </span>
                   <input
                     name="buttonText"
-                    placeholder="Comandă acum"
+                    placeholder="Shop now (default: AI writes it in the post's language)"
                     className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                   />
                   <span className="text-[10px] text-muted-foreground">
@@ -445,7 +445,7 @@ export function SchedulesEditor({
               {keywordsMode === "custom" && (
                 <input
                   name="keywordsCustom"
-                  placeholder="huse personalizate, husa iphone 15, …"
+                  placeholder="espresso machine, coffee grinder, …"
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
               )}
@@ -551,7 +551,7 @@ export function SchedulesEditor({
                   </span>
                   <input
                     name="offerCoupon"
-                    placeholder="e.g. TOAMNA10"
+                    placeholder="e.g. FALL10"
                     className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                   />
                   <span className="text-[10px] text-muted-foreground">
