@@ -25,6 +25,7 @@ import {
   type PublishQueueItem,
 } from "@/db/schema";
 import { callAI } from "./ai-call";
+import type { WooProduct } from "./woo-products";
 import { logActivity } from "./activity";
 import {
   retrieveKnowledge,
@@ -232,14 +233,31 @@ async function generateForSchedule(
   const context = await buildClientContext({ client, topicSeed });
 
   if (s.kind === "blog_draft") {
+    if (cfg.blog_source === "woo_product" || cfg.blog_source === "woo_products") {
+      const picks = await pickWooProducts(
+        s,
+        client,
+        cfg.blog_source === "woo_products" ? 3 : 1,
+      );
+      if (!picks) return null;
+      return generateBlogProductPost({ client, tone, topicSeed, ...picks });
+    }
     return generateBlogDraft({ client, topicSeed, tone, context });
   }
   if (s.kind === "gbp_post") {
     const maxChars = clampGbpMaxChars(cfg.max_chars);
     if (cfg.gbp_source === "woo_product") {
-      const product = await pickWooProduct(s, client);
-      if (!product) return null;
-      return generateGbpProductPost({ client, tone, product, maxChars });
+      const picks = await pickWooProducts(s, client, 1);
+      if (!picks) return null;
+      return generateGbpProductPost({
+        client,
+        tone,
+        product: picks.products[0],
+        keywords: picks.keywords,
+        maxChars,
+        offer: cfg.post_type === "OFFER",
+        couponCode: typeof cfg.offer_coupon === "string" ? cfg.offer_coupon : undefined,
+      });
     }
     return generateGbpPost({
       client,
@@ -322,6 +340,138 @@ Output strict JSON only — no markdown fences, no preamble:
   };
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Product photo + price + buttons, as plain HTML using WordPress's core
+ * button classes so the theme styles them like any button block.
+ */
+function productCardHtml(p: WooProduct, lang: string): string {
+  const ro = lang.toLowerCase().startsWith("ro");
+  const url = escapeHtml(p.permalink);
+  const name = escapeHtml(p.name);
+  const price = p.price
+    ? `<p class="product-price"><strong>${escapeHtml(p.price)}</strong>${
+        p.onSale && p.regularPrice ? ` <del>${escapeHtml(p.regularPrice)}</del>` : ""
+      }</p>`
+    : "";
+  const img = p.imageUrl
+    ? `<figure class="wp-block-image size-large"><a href="${url}"><img src="${escapeHtml(p.imageUrl)}" alt="${name}" loading="lazy" /></a><figcaption>${name}</figcaption></figure>`
+    : "";
+  return `<div class="product-card">
+${img}
+${price}
+<div class="wp-block-buttons">
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="${url}">${ro ? "Cumpără acum" : "Buy now"}</a></div>
+<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="${url}">${ro ? "Vezi detalii" : "See details"}</a></div>
+</div>
+</div>`;
+}
+
+/**
+ * Blog post about one product (a review-style article) or several (a
+ * roundup). The AI marks where each product card goes with
+ * <!--PRODUCT:n-->; cards it forgot are appended at the end.
+ */
+async function generateBlogProductPost(opts: {
+  client: Client;
+  tone: string;
+  topicSeed: string;
+  products: WooProduct[];
+  keywords: string[];
+}): Promise<GeneratedItem | null> {
+  const { products } = opts;
+  const single = products.length === 1;
+  const system = `You are an expert SEO content writer for the online shop ${opts.client.name} (${opts.client.url}).
+
+Write ONE blog post in HTML that ${single ? "presents ONE product in depth" : `presents these ${products.length} products as a roundup`}. ${single ? "700-1000" : "900-1300"} words. Structure:
+- Opening tl;dr (1-2 sentences, no header)
+- Short intro that frames the buyer's problem or occasion
+- ${single ? "3-4 H2 sections: what it is, who it is for, why it beats the alternatives, how to choose / use it" : "One H2 per product (use its name), then a short H2 comparing who each one suits"}
+- Put the marker <!--PRODUCT:n--> on its own line where product n's photo and buy buttons should appear (n is the number given below); ${single ? "place it right after the intro" : "place each one under that product's H2"}
+- Closing paragraph inviting the reader to order
+- Use <p>, <h2>, <h3>, <ul>, <ol>, <strong>, <em>, <blockquote>
+- NEVER include <html>, <body>, <h1>, <img>, <a> buttons, <style> — images and buttons are added from the markers
+- Use only facts given below. Never invent specs, stock levels, discounts, reviews or prices
+- Work 1-3 of the shop's search phrases into headings or text where they fit naturally
+- Write in the same language as the product names
+- Tone: ${opts.tone}`;
+  const productLines = products
+    .map(
+      (p, i) => `Product ${i + 1}
+Name: ${p.name}
+Price: ${p.price ?? "not shown"}${p.onSale && p.regularPrice ? ` (on sale, was ${p.regularPrice})` : ""}
+Description: ${p.shortDescription || "(none)"}`,
+    )
+    .join("\n\n");
+  const user = `[Products]
+${productLines}
+
+[Search phrases the shop ranks for]
+${opts.keywords.join("; ") || "(none)"}
+
+[Angle hint]
+${opts.topicSeed}
+
+Output strict JSON only — no markdown fences, no preamble:
+
+{
+  "title": "55-65 char post title that would earn a click in SERP",
+  "metaDescription": "140-160 char SEO description",
+  "excerpt": "1-sentence WP excerpt (≤180 chars)",
+  "contentHtml": "the full body as HTML with the <!--PRODUCT:n--> markers"
+}`;
+  const raw = await callAI({
+    system,
+    user,
+    maxTokens: 4000,
+    temperature: 0.7,
+    timeoutMs: 120_000,
+    ignoreCreditSaver: true,
+    feature: "blog_draft",
+    clientId: opts.client.id,
+  });
+  if (!raw) return null;
+  const parsed = extractJson(raw) as {
+    title?: string;
+    metaDescription?: string;
+    excerpt?: string;
+    contentHtml?: string;
+  } | null;
+  if (!parsed || !parsed.title || !parsed.contentHtml) return null;
+
+  // clients.language defaults to "en", so a .ro shop counts as Romanian
+  const lang = /\.ro(\/|$)/i.test(opts.client.url ?? "")
+    ? "ro"
+    : (opts.client.language ?? "en");
+  const placed = new Set<number>();
+  let html = parsed.contentHtml.replace(/<!--\s*PRODUCT:(\d+)\s*-->/g, (_m, n) => {
+    const i = Number(n) - 1;
+    if (!products[i] || placed.has(i)) return "";
+    placed.add(i);
+    return productCardHtml(products[i], lang);
+  });
+  const missing = products.filter((_, i) => !placed.has(i));
+  if (missing.length > 0) {
+    html += "\n" + missing.map((p) => productCardHtml(p, lang)).join("\n");
+  }
+  return {
+    title: parsed.title.slice(0, 200),
+    body: html,
+    payload: {
+      metaDescription: (parsed.metaDescription ?? "").slice(0, 200),
+      excerpt: (parsed.excerpt ?? "").slice(0, 300),
+      productIds: products.map((p) => p.id),
+    },
+  };
+}
+
 /** Schedule's `max_chars` → a sane GBP length (Google caps posts at 1500). */
 function clampGbpMaxChars(raw: unknown): number {
   const n = Number(raw);
@@ -333,37 +483,131 @@ function gbpLengthRule(maxChars: number): string {
   return `${Math.round(maxChars * 0.6)}–${maxChars} characters total, hard limit ${maxChars}`;
 }
 
+/** Lowercase, no diacritics — "Huse Galaxy" and "huse galaxy" match. */
+function foldText(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
 /**
- * Most popular in-stock product this schedule hasn't posted in its last
- * 20 items, so a daily schedule walks the catalogue instead of repeating
- * the best-seller.
+ * The client's tracked keywords, best-ranking first. Product picks favour
+ * products these name, and product prompts weave them in.
  */
-async function pickWooProduct(
+async function topClientKeywords(clientId: number, limit = 10): Promise<string[]> {
+  try {
+    const rows = await db
+      .select({ query: keywords.query, position: keywordRankings.position })
+      .from(keywords)
+      .leftJoin(keywordRankings, eq(keywordRankings.keywordId, keywords.id))
+      .where(eq(keywords.clientId, clientId))
+      .orderBy(desc(keywordRankings.checkedAt))
+      .limit(300);
+    const best = new Map<string, number>();
+    for (const r of rows) {
+      const pos = r.position ?? 999;
+      if (!best.has(r.query) || pos < best.get(r.query)!) best.set(r.query, pos);
+    }
+    return [...best.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, limit)
+      .map(([q]) => q);
+  } catch {
+    return [];
+  }
+}
+
+/** How many keyword words appear in the product's name and description. */
+function keywordScore(p: WooProduct, kws: string[]): number {
+  const hay = foldText(`${p.name} ${p.shortDescription}`);
+  let score = 0;
+  for (const kw of kws) {
+    const words = foldText(kw)
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length >= 3);
+    const hits = words.filter((w) => hay.includes(w)).length;
+    if (words.length > 0 && hits === words.length) score += 3;
+    else score += hits;
+  }
+  return score;
+}
+
+type ProductPicks = { products: WooProduct[]; keywords: string[] };
+
+/**
+ * `count` in-stock products with a photo for this schedule's next item.
+ * Picks rotate between three pools so a daily schedule mixes them:
+ * products that match the client's top keywords, the newest arrivals,
+ * and a random one. Products used in the schedule's last 20 items are
+ * skipped while there are others left.
+ */
+async function pickWooProducts(
   s: DailySchedule,
   client: Client,
-): Promise<import("./woo-products").WooProduct | null> {
+  count: number,
+): Promise<ProductPicks | null> {
   if (!client.url) return null;
   const { listWooProducts } = await import("./woo-products");
   const site = /^https?:\/\//i.test(client.url) ? client.url : `https://${client.url}`;
-  const products = (await listWooProducts(site)).filter((p) => p.imageUrl);
-  if (products.length === 0) return null;
+  const [popular, newest] = await Promise.all([
+    listWooProducts(site),
+    listWooProducts(site, { orderby: "date", perPage: 20 }).catch(() => []),
+  ]);
+  const byId = new Map<number, WooProduct>();
+  for (const p of [...popular, ...newest]) {
+    if (p.imageUrl && !byId.has(p.id)) byId.set(p.id, p);
+  }
+  if (byId.size === 0) return null;
+
   const recent = await db
     .select({ payloadJson: publishQueue.payloadJson })
     .from(publishQueue)
     .where(eq(publishQueue.scheduleId, s.id))
     .orderBy(desc(publishQueue.createdAt))
     .limit(20);
-  const used = new Set(
-    recent.map((r) => (r.payloadJson as { productId?: number } | null)?.productId),
-  );
-  return products.find((p) => !used.has(p.id)) ?? products[0];
+  const used = new Set<number>();
+  for (const r of recent) {
+    const pl = (r.payloadJson ?? {}) as { productId?: number; productIds?: number[] };
+    if (pl.productId) used.add(pl.productId);
+    for (const id of pl.productIds ?? []) used.add(id);
+  }
+  let pool = [...byId.values()].filter((p) => !used.has(p.id));
+  if (pool.length < count) pool = [...byId.values()];
+
+  const kws = await topClientKeywords(client.id);
+  const picked: WooProduct[] = [];
+  const take = (p: WooProduct | undefined) => {
+    if (p && !picked.includes(p)) picked.push(p);
+  };
+  const strategies = ["keyword", "new", "random"] as const;
+  for (let i = 0; picked.length < Math.min(count, pool.length) && i < count * 3; i++) {
+    const left = pool.filter((p) => !picked.includes(p));
+    const strategy = strategies[(recent.length + i) % strategies.length];
+    if (strategy === "keyword" && kws.length > 0) {
+      const scored = left
+        .map((p) => ({ p, score: keywordScore(p, kws) }))
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score);
+      take(scored[0]?.p ?? left[0]);
+    } else if (strategy === "new") {
+      take(newest.map((n) => left.find((p) => p.id === n.id)).find(Boolean) ?? left[0]);
+    } else {
+      take(left[Math.floor(Math.random() * left.length)]);
+    }
+  }
+  return picked.length > 0 ? { products: picked, keywords: kws } : null;
 }
 
 async function generateGbpProductPost(opts: {
   client: Client;
   tone: string;
-  product: import("./woo-products").WooProduct;
+  product: WooProduct;
+  keywords: string[];
   maxChars: number;
+  /** OFFER post: Google shows "View offer" linking to the product */
+  offer: boolean;
+  couponCode?: string;
 }): Promise<GeneratedItem | null> {
   const { product } = opts;
   const system = `You write Google Business Profile posts that showcase ONE product from an online shop. Constraints:
@@ -373,7 +617,8 @@ async function generateGbpProductPost(opts: {
 - Name the product and the one or two benefits a buyer cares about most
 - Mention the price only if it is given below; never invent prices, discounts or stock levels
 - No [placeholder] brackets, no "we are excited to" filler
-- End by inviting the reader to buy — the post's button opens the product page
+- End by inviting the reader to buy — the post's link opens the product page
+- If a search phrase below fits the product, use one naturally; never force it
 - Write in the same language as the product name and description
 - Tone: ${opts.tone}`;
   const user = `[Shop]
@@ -381,8 +626,11 @@ ${opts.client.name} — ${opts.client.url ?? ""}
 
 [Product]
 Name: ${product.name}
-Price: ${product.price ?? "not shown"}
+Price: ${product.price ?? "not shown"}${product.onSale && product.regularPrice ? ` (on sale, was ${product.regularPrice})` : ""}
 Description: ${product.shortDescription || "(none)"}
+${opts.couponCode ? `Coupon code: ${opts.couponCode}\n` : ""}
+[Search phrases the shop ranks for]
+${opts.keywords.slice(0, 6).join("; ") || "(none)"}
 
 Output strict JSON only — no markdown fences:
 
@@ -408,7 +656,16 @@ Output strict JSON only — no markdown fences:
       ctaUrl: product.permalink,
       mediaUrl: product.imageUrl,
       productId: product.id,
-      postType: "STANDARD",
+      postType: opts.offer ? "OFFER" : "STANDARD",
+      ...(opts.offer
+        ? {
+            offerTitle:
+              product.onSale && product.regularPrice && product.price
+                ? `${product.name} – ${product.price}`
+                : product.name,
+            couponCode: opts.couponCode,
+          }
+        : {}),
     },
   };
 }
@@ -769,6 +1026,8 @@ async function publishGbp(
     /** Product posts link the button to the product, not the homepage */
     ctaUrl?: string | null;
     mediaUrl?: string | null;
+    offerTitle?: string;
+    couponCode?: string;
   };
   // Google rejects every CTA except CALL without a url (400 "invalid
   // argument"), so link the client's site; no site → no button.
@@ -791,10 +1050,25 @@ async function publishGbp(
       : ctaUrl
         ? { actionType, url: ctaUrl }
         : undefined;
+  // OFFER posts carry the link as "View offer" (redeemOnlineUrl) instead
+  // of a button; they run for a week from today. EVENT isn't supported
+  // (needs real dates), so it goes out as STANDARD.
+  const isOffer = payload.postType === "OFFER" && Boolean(ctaUrl);
+  const start = new Date();
   const r = await createGbpLocalPost({
     locationName,
     summary: item.body ?? "",
-    callToAction: cta,
+    callToAction: isOffer ? undefined : cta,
+    topicType: isOffer ? "OFFER" : "STANDARD",
+    offer: isOffer
+      ? {
+          title: payload.offerTitle || item.title || client?.name || "Offer",
+          redeemOnlineUrl: ctaUrl!,
+          startDate: start,
+          endDate: new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000),
+          couponCode: payload.couponCode || undefined,
+        }
+      : undefined,
     mediaUrl: toAbsoluteHttpsUrl(payload.mediaUrl) ?? undefined,
     languageCode: client?.language ?? undefined,
     clientIdScope: item.clientId,

@@ -106,6 +106,7 @@ export function SchedulesEditor({
 }) {
   const [showForm, setShowForm] = useState(schedules.length === 0);
   const [selectedKind, setSelectedKind] = useState<Kind>("blog_draft");
+  const [postType, setPostType] = useState("STANDARD");
   const [selectedDestination, setSelectedDestination] =
     useState<Destination>("local");
   const [state, formAction, pending] = useActionState<
@@ -340,6 +341,31 @@ export function SchedulesEditor({
             />
           </label>
 
+          {selectedKind === "blog_draft" && (
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">Article about</span>
+              <select
+                name="blogSource"
+                defaultValue="topic"
+                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+              >
+                <option value="topic">A topic (AI picks the angle)</option>
+                <option value="woo_product">
+                  One product from the shop (photo + buy buttons)
+                </option>
+                <option value="woo_products">
+                  Several products, roundup (3 products)
+                </option>
+              </select>
+              <span className="text-[10px] text-muted-foreground">
+                Products come from the WooCommerce catalogue on the
+                client&apos;s website. Each run mixes products matching the
+                top tracked keywords, the newest arrivals and a random pick,
+                and skips products used recently.
+              </span>
+            </label>
+          )}
+
           {selectedKind === "gbp_post" && selectedDestination === "gbp" && (
             <>
               <label className="space-y-1 text-xs">
@@ -391,14 +417,33 @@ export function SchedulesEditor({
                 <span className="text-muted-foreground">Post type</span>
                 <select
                   name="postType"
-                  defaultValue="STANDARD"
+                  value={postType}
+                  onChange={(e) => setPostType(e.target.value)}
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 >
                   <option value="STANDARD">Standard update</option>
                   <option value="EVENT">Event</option>
-                  <option value="OFFER">Offer</option>
+                  <option value="OFFER">
+                    Offer (&quot;View offer&quot; links to the product)
+                  </option>
                 </select>
               </label>
+              {postType === "OFFER" && (
+                <label className="space-y-1 text-xs">
+                  <span className="text-muted-foreground">
+                    Coupon code (optional)
+                  </span>
+                  <input
+                    name="offerCoupon"
+                    placeholder="e.g. TOAMNA10"
+                    className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Offers run for 7 days. Product posts link the offer to
+                    the product page; topic posts link to the website.
+                  </span>
+                </label>
+              )}
             </>
           )}
 
@@ -481,6 +526,8 @@ function ScheduleRow({
     post_type?: string;
     gbp_source?: string;
     max_chars?: number;
+    blog_source?: string;
+    offer_coupon?: string;
   };
 
   return (
@@ -600,6 +647,23 @@ function ScheduleRow({
               {" · "}
               <span className="text-foreground/80">Max length:</span>{" "}
               {cfg.max_chars ?? 600} chars
+              {cfg.post_type === "OFFER" && (
+                <>
+                  {" · "}
+                  <span className="text-foreground/80">Type:</span> Offer
+                  {cfg.offer_coupon ? ` (coupon ${cfg.offer_coupon})` : ""}
+                </>
+              )}
+            </div>
+          )}
+          {schedule.kind === "blog_draft" && cfg.blog_source && (
+            <div>
+              <span className="text-foreground/80">Article about:</span>{" "}
+              {cfg.blog_source === "woo_product"
+                ? "One shop product"
+                : cfg.blog_source === "woo_products"
+                  ? "Product roundup (3)"
+                  : "Topic"}
             </div>
           )}
           {cfg.gbp_location_name && (
