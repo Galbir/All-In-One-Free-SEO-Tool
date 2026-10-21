@@ -353,7 +353,7 @@ export function SchedulesEditor({
                 />
                 <span className="text-[10px] text-muted-foreground">
                   Optional override (accounts/…/locations/…). By default
-                  posts go to the listing chosen on this client's GBP
+                  posts go to the listing chosen on this client&apos;s GBP
                   Reviews page.
                 </span>
               </label>
