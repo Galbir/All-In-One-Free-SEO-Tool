@@ -107,6 +107,9 @@ export function SchedulesEditor({
   const [showForm, setShowForm] = useState(schedules.length === 0);
   const [selectedKind, setSelectedKind] = useState<Kind>("blog_draft");
   const [postType, setPostType] = useState("STANDARD");
+  const [blogSource, setBlogSource] = useState("topic");
+  const [socialSource, setSocialSource] = useState("topic");
+  const [keywordsMode, setKeywordsMode] = useState("top");
   const [selectedDestination, setSelectedDestination] =
     useState<Destination>("local");
   const [state, formAction, pending] = useActionState<
@@ -346,7 +349,8 @@ export function SchedulesEditor({
               <span className="text-muted-foreground">Article about</span>
               <select
                 name="blogSource"
-                defaultValue="topic"
+                value={blogSource}
+                onChange={(e) => setBlogSource(e.target.value)}
                 className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
               >
                 <option value="topic">A topic (AI picks the angle)</option>
@@ -360,8 +364,89 @@ export function SchedulesEditor({
               <span className="text-[10px] text-muted-foreground">
                 Products come from the WooCommerce catalogue on the
                 client&apos;s website. Each run mixes products matching the
-                top tracked keywords, the newest arrivals and a random pick,
-                and skips products used recently.
+                keywords below, the newest arrivals and a random pick, and
+                skips products used recently.
+              </span>
+            </label>
+          )}
+
+          {selectedKind === "blog_draft" && blogSource !== "topic" && (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1 text-xs">
+                <span className="text-muted-foreground">Main button text</span>
+                <input
+                  name="buttonText"
+                  placeholder="Cumpără acum"
+                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </label>
+              <label className="space-y-1 text-xs">
+                <span className="text-muted-foreground">Second button text</span>
+                <input
+                  name="buttonText2"
+                  placeholder="Vezi detalii"
+                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </label>
+            </div>
+          )}
+
+          {selectedKind === "social_post" && (
+            <>
+              <label className="space-y-1 text-xs">
+                <span className="text-muted-foreground">Post about</span>
+                <select
+                  name="socialSource"
+                  value={socialSource}
+                  onChange={(e) => setSocialSource(e.target.value)}
+                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  <option value="topic">A topic (AI picks the angle)</option>
+                  <option value="woo_product">
+                    A product from the shop (link + photo)
+                  </option>
+                </select>
+              </label>
+              {socialSource === "woo_product" && (
+                <label className="space-y-1 text-xs">
+                  <span className="text-muted-foreground">
+                    Call-to-action text
+                  </span>
+                  <input
+                    name="buttonText"
+                    placeholder="Comandă acum"
+                    className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Added before the product link at the end of every
+                    variant.
+                  </span>
+                </label>
+              )}
+            </>
+          )}
+
+          {selectedKind !== "internal_checklist" && (
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">Keywords</span>
+              <select
+                name="keywordsMode"
+                value={keywordsMode}
+                onChange={(e) => setKeywordsMode(e.target.value)}
+                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+              >
+                <option value="top">Top tracked keywords (best ranking)</option>
+                <option value="custom">Only the keywords I type</option>
+              </select>
+              {keywordsMode === "custom" && (
+                <input
+                  name="keywordsCustom"
+                  placeholder="huse personalizate, husa iphone 15, …"
+                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              )}
+              <span className="text-[10px] text-muted-foreground">
+                Used in the text and to choose which products to feature.
               </span>
             </label>
           )}
@@ -412,6 +497,29 @@ export function SchedulesEditor({
                   <option value="1000">Long (≤ 1000 characters)</option>
                   <option value="1500">Maximum (≤ 1500 characters)</option>
                 </select>
+              </label>
+              <label className="space-y-1 text-xs">
+                <span className="text-muted-foreground">Button</span>
+                <select
+                  name="ctaType"
+                  defaultValue="auto"
+                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+                >
+                  <option value="auto">
+                    Auto (Shop for products, AI picks for topics)
+                  </option>
+                  <option value="SHOP">Shop</option>
+                  <option value="ORDER">Order online</option>
+                  <option value="LEARN_MORE">Learn more</option>
+                  <option value="BOOK">Book</option>
+                  <option value="SIGN_UP">Sign up</option>
+                  <option value="CALL">Call now</option>
+                </select>
+                <span className="text-[10px] text-muted-foreground">
+                  Product posts link the button to the product page; topic
+                  posts to the website. Offer posts use &quot;View
+                  offer&quot; instead.
+                </span>
               </label>
               <label className="space-y-1 text-xs">
                 <span className="text-muted-foreground">Post type</span>
@@ -528,6 +636,11 @@ function ScheduleRow({
     max_chars?: number;
     blog_source?: string;
     offer_coupon?: string;
+    social_source?: string;
+    keywords_mode?: string;
+    keywords_custom?: string[];
+    cta_type?: string;
+    button_text?: string;
   };
 
   return (
@@ -654,6 +767,23 @@ function ScheduleRow({
                   {cfg.offer_coupon ? ` (coupon ${cfg.offer_coupon})` : ""}
                 </>
               )}
+            </div>
+          )}
+          {cfg.keywords_mode === "custom" && cfg.keywords_custom && (
+            <div>
+              <span className="text-foreground/80">Keywords:</span>{" "}
+              {cfg.keywords_custom.join(", ")}
+            </div>
+          )}
+          {(cfg.cta_type || cfg.button_text) && (
+            <div>
+              <span className="text-foreground/80">Button:</span>{" "}
+              {cfg.button_text ?? cfg.cta_type}
+            </div>
+          )}
+          {schedule.kind === "social_post" && cfg.social_source === "woo_product" && (
+            <div>
+              <span className="text-foreground/80">Post about:</span> Shop product
             </div>
           )}
           {schedule.kind === "blog_draft" && cfg.blog_source && (

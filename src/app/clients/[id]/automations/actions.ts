@@ -31,6 +31,22 @@ export async function createSchedule(
     blogSourceRaw === "woo_product" || blogSourceRaw === "woo_products"
       ? blogSourceRaw
       : "topic";
+  const socialSource =
+    formData.get("socialSource") === "woo_product" ? "woo_product" : "topic";
+  const keywordsMode = formData.get("keywordsMode") === "custom" ? "custom" : "top";
+  const keywordsCustom = String(formData.get("keywordsCustom") ?? "")
+    .split(/[,\n;]/)
+    .map((k) => k.trim().slice(0, 80))
+    .filter(Boolean)
+    .slice(0, 20);
+  const ctaTypeRaw = String(formData.get("ctaType") ?? "auto");
+  const ctaType = ["SHOP", "ORDER", "LEARN_MORE", "BOOK", "SIGN_UP", "CALL"].includes(
+    ctaTypeRaw,
+  )
+    ? ctaTypeRaw
+    : null;
+  const buttonText = String(formData.get("buttonText") ?? "").trim().slice(0, 40);
+  const buttonText2 = String(formData.get("buttonText2") ?? "").trim().slice(0, 40);
   const offerCoupon = String(formData.get("offerCoupon") ?? "")
     .trim()
     .slice(0, 58);
@@ -95,7 +111,13 @@ export async function createSchedule(
     }
   }
 
-  if (kind === "blog_draft" && blogSource !== "topic") {
+  if (keywordsMode === "custom" && keywordsCustom.length === 0) {
+    return { ok: false, error: "Type at least one keyword, or use the top keywords." };
+  }
+  if (
+    (kind === "blog_draft" && blogSource !== "topic") ||
+    (kind === "social_post" && socialSource !== "topic")
+  ) {
     const [client] = await db
       .select({ url: clients.url })
       .from(clients)
@@ -111,7 +133,14 @@ export async function createSchedule(
   }
 
   const config: Record<string, unknown> = { destination };
+  config.keywords_mode = keywordsMode;
+  if (keywordsMode === "custom") config.keywords_custom = keywordsCustom;
   if (kind === "blog_draft") config.blog_source = blogSource;
+  if (kind === "social_post") config.social_source = socialSource;
+  if (buttonText && (kind === "blog_draft" || kind === "social_post")) {
+    config.button_text = buttonText;
+  }
+  if (buttonText2 && kind === "blog_draft") config.button_text_2 = buttonText2;
   if (topicSeed) config.topic_seed = topicSeed;
   if (tone) config.tone = tone;
   if (kind === "gbp_post") {
@@ -119,6 +148,7 @@ export async function createSchedule(
     config.post_type = postType;
     config.gbp_source = gbpSource;
     config.max_chars = maxChars;
+    if (ctaType) config.cta_type = ctaType;
     if (postType === "OFFER" && offerCoupon) config.offer_coupon = offerCoupon;
   }
 
