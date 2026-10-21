@@ -358,12 +358,13 @@ export function SchedulesEditor({
                   One product from the shop (photo + buy buttons)
                 </option>
                 <option value="woo_products">
-                  Several products, roundup (3 products)
+                  Several products, roundup (3, each with photo + buy buttons)
                 </option>
               </select>
               <span className="text-[10px] text-muted-foreground">
-                Products come from the WooCommerce catalogue on the
-                client&apos;s website. Each run mixes products matching the
+                Product options need a WooCommerce shop on the client&apos;s
+                website (no WordPress connection needed to write them).
+                Products come from that shop&apos;s catalogue. Each run mixes products matching the
                 keywords below, the newest arrivals and a random pick, and
                 skips products used recently.
               </span>
