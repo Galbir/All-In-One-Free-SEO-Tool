@@ -30,6 +30,14 @@ export async function createSchedule(
   const postType = String(formData.get("postType") ?? "STANDARD");
   const gbpSource =
     formData.get("gbpSource") === "woo_product" ? "woo_product" : "topic";
+  const blogSourceRaw = String(formData.get("blogSource") ?? "topic");
+  const blogSource =
+    blogSourceRaw === "woo_product" || blogSourceRaw === "woo_products"
+      ? blogSourceRaw
+      : "topic";
+  const offerCoupon = String(formData.get("offerCoupon") ?? "")
+    .trim()
+    .slice(0, 58);
   const maxChars = Math.max(
     150,
     Math.min(1500, Number(formData.get("maxChars") ?? 600) || 600),
@@ -93,7 +101,23 @@ export async function createSchedule(
     }
   }
 
+  if (kind === "blog_draft" && blogSource !== "topic") {
+    const [client] = await db
+      .select({ url: clients.url })
+      .from(clients)
+      .where(eq(clients.id, clientId))
+      .limit(1);
+    if (!client?.url) {
+      return {
+        ok: false,
+        error:
+          "Product articles read the shop's WooCommerce catalogue — add the client's website URL first.",
+      };
+    }
+  }
+
   const config: Record<string, unknown> = { destination };
+  if (kind === "blog_draft") config.blog_source = blogSource;
   if (topicSeed) config.topic_seed = topicSeed;
   if (tone) config.tone = tone;
   if (kind === "gbp_post") {
@@ -101,6 +125,7 @@ export async function createSchedule(
     config.post_type = postType;
     config.gbp_source = gbpSource;
     config.max_chars = maxChars;
+    if (postType === "OFFER" && offerCoupon) config.offer_coupon = offerCoupon;
   }
 
   const insert: NewDailySchedule = {
