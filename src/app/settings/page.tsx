@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Bell,
   Brain,
+  Clock,
   CheckCircle2,
   Globe,
   Database,
@@ -32,6 +33,7 @@ import {
   getOllamaUrl,
 } from "@/lib/api-keys";
 import { WebhookForm } from "./webhook-form";
+import { TimeZoneForm } from "./timezone-form";
 import { BrandForm } from "./brand-form";
 import { ApiKeysSection } from "./api-keys-section";
 import { ActiveProviderCard } from "./active-provider-card";
@@ -242,6 +244,32 @@ export default async function SettingsPage() {
       </div>
 
       {/* Data */}
+      {/* General */}
+      <section id="general" className="relative overflow-hidden scroll-mt-24 rounded-2xl border border-white/5 bg-card/40 backdrop-blur-md">
+        <header className="relative border-b border-white/5 px-5 py-4">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Clock className="size-4 text-violet-300" />
+            General
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            The time zone scheduled reports are sent in. &quot;9 AM&quot; means
+            9 AM here — on a Docker or cloud server the server&apos;s own clock is
+            usually UTC.
+          </p>
+        </header>
+        <div className="relative p-5">
+          <TimeZoneForm
+            current={(await getSetting<string>("workspace.timezone")) ?? null}
+            serverZone={Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"}
+            zones={
+              typeof Intl.supportedValuesOf === "function"
+                ? Intl.supportedValuesOf("timeZone")
+                : []
+            }
+          />
+        </div>
+      </section>
+
       <section id="data" className="relative overflow-hidden scroll-mt-24 rounded-2xl border border-white/5 bg-card/40 backdrop-blur-md">
         <header className="relative border-b border-white/5 px-5 py-4">
           <h2 className="flex items-center gap-2 text-base font-semibold">

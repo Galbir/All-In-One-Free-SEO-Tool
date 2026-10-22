@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { safeRevalidatePath } from "@/lib/safe-revalidate";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -59,7 +59,7 @@ export async function addMonitoredPage(
   // Take initial snapshot so future checks can diff against it
   await checkPageChangesInternal(row.id, /* silent */ true);
 
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
   return { ok: true, id: row.id };
 }
 
@@ -68,7 +68,7 @@ export async function deleteMonitoredPage(monitoredPageId: number) {
   await db
     .delete(monitoredPages)
     .where(eq(monitoredPages.id, monitoredPageId));
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
 }
 
 export async function setMonitorStatus(
@@ -80,7 +80,7 @@ export async function setMonitorStatus(
     .update(monitoredPages)
     .set({ status, updatedAt: new Date() })
     .where(eq(monitoredPages.id, monitoredPageId));
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
 }
 
 async function checkPageChangesInternal(
@@ -212,7 +212,7 @@ async function checkPageChangesInternal(
     }
   }
 
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
   return { changes: diffs.length };
 }
 
@@ -232,5 +232,5 @@ export async function checkAllMonitoredPages() {
   for (const p of pages) {
     await checkPageChangesInternal(p.id);
   }
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
 }

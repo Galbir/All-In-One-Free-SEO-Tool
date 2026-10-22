@@ -16,7 +16,7 @@ const scheduleInput = z.object({
   clientId: z.coerce.number().int().positive(),
   template: z.enum(["executive", "detailed", "technical"]).default("detailed"),
   frequency: z.enum(["weekly", "monthly"]).default("monthly"),
-  dayOfMonth: z.coerce.number().int().min(1).max(28).default(1),
+  dayOfMonth: z.coerce.number().int().min(1).max(31).default(1),
   dayOfWeek: z.coerce.number().int().min(0).max(6).default(1),
   hourOfDay: z.coerce.number().int().min(0).max(23).default(9),
   recipients: z.string().trim().min(1, "Add at least one recipient"),
@@ -56,12 +56,17 @@ export async function saveSchedule(
     return { ok: false, error: "No valid email addresses found" };
   }
 
-  const next = computeNextSendAt({
-    frequency: parsed.data.frequency,
-    dayOfMonth: parsed.data.dayOfMonth,
-    dayOfWeek: parsed.data.dayOfWeek,
-    hourOfDay: parsed.data.hourOfDay,
-  });
+  const { workspaceTimeZone } = await import("@/lib/timezone");
+  const next = computeNextSendAt(
+    {
+      frequency: parsed.data.frequency,
+      dayOfMonth: parsed.data.dayOfMonth,
+      dayOfWeek: parsed.data.dayOfWeek,
+      hourOfDay: parsed.data.hourOfDay,
+    },
+    new Date(),
+    await workspaceTimeZone(),
+  );
 
   // Upsert: one schedule per (clientId, template) — keeps UX simple
   const existing = await db

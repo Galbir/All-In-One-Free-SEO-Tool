@@ -6,11 +6,29 @@ import { sendMail } from "./mailer";
 import { getSetting } from "./settings-store";
 import { logActivity } from "./activity";
 import { isWhiteLabelled, loadBrand } from "./brand";
+import { daysInMonth, wallClock, workspaceTimeZone, zonedTime } from "./timezone";
 
 /**
  * Compute the next time this schedule should fire. We store it on the row
  * so the runner can do a fast `nextSendAt <= now` query.
  */
+/**
+ * When to try a failed scheduled report again: 30 min, 1h, 2h, 4h, 8h,
+ * 16h — then stop retrying this period and wait for the next regular
+ * slot, so a permanently broken setup (no SMTP, bad address) costs six
+ * attempts, not one every few minutes forever.
+ */
+export function nextAttemptAfterFailure(
+  failures: number,
+  now: Date,
+  nextRegular: () => Date,
+): { at: Date; gaveUp: boolean } {
+  const MAX_ATTEMPTS = 6;
+  if (failures >= MAX_ATTEMPTS) return { at: nextRegular(), gaveUp: true };
+  const delayMs = 30 * 60_000 * 2 ** (failures - 1);
+  return { at: new Date(now.getTime() + delayMs), gaveUp: false };
+}
+
 export function computeNextSendAt(
   schedule: {
     frequency: "weekly" | "monthly";
@@ -19,83 +37,65 @@ export function computeNextSendAt(
     hourOfDay: number;
   },
   from: Date = new Date(),
+  timeZone?: string | null,
 ): Date {
-  const next = new Date(from);
-  next.setSeconds(0, 0);
-  next.setMinutes(0);
-  next.setHours(schedule.hourOfDay);
+  const now = wallClock(from, timeZone);
+  const hour = Math.max(0, Math.min(23, schedule.hourOfDay));
 
   if (schedule.frequency === "monthly") {
-    const day = Math.min(schedule.dayOfMonth ?? 1, 28);
-    next.setDate(day);
-    if (next <= from) {
-      next.setMonth(next.getMonth() + 1);
-      next.setDate(day);
+    // Day 29-31 means "that day, or the month's last day if it is
+    // shorter". It used to be clamped to the 28th in every month.
+    const want = Math.max(1, Math.min(31, schedule.dayOfMonth ?? 1));
+    let year = now.year;
+    let month = now.month;
+    for (let i = 0; i < 3; i++) {
+      const day = Math.min(want, daysInMonth(year, month));
+      const at = zonedTime(year, month, day, hour, timeZone);
+      if (at > from) return at;
+      month += 1;
+      if (month > 11) {
+        month = 0;
+        year += 1;
+      }
     }
-  } else {
-    // weekly
-    const targetDow = schedule.dayOfWeek ?? 1;
-    const currentDow = next.getDay();
-    let daysAhead = (targetDow - currentDow + 7) % 7;
-    if (daysAhead === 0 && next <= from) daysAhead = 7;
-    next.setDate(next.getDate() + daysAhead);
   }
-  return next;
+
+  // Weekly (and the unreachable monthly fall-through).
+  const targetDow = schedule.dayOfWeek ?? 1;
+  let daysAhead = (targetDow - now.weekday + 7) % 7;
+  let at = zonedTime(now.year, now.month, now.day + daysAhead, hour, timeZone);
+  if (at <= from) {
+    daysAhead += 7;
+    at = zonedTime(now.year, now.month, now.day + daysAhead, hour, timeZone);
+  }
+  return at;
 }
 
 /**
- * Run all due schedules. Called from a request-time runner on the dashboard
- * (so the user doesn't need OS cron). We track the last run timestamp in
- * settings to avoid hammering Google APIs every page load.
+ * Run all due report schedules. The scheduler (lib/scheduler.ts) owns the
+ * cadence; this used to keep its own 5-minute gate in settings on top,
+ * a leftover from when it ran off dashboard page loads.
  */
-const RUNNER_INTERVAL_MS = 5 * 60 * 1000; // 5 min
-
-export async function tickScheduleRunner(): Promise<void> {
-  const lastRun = await getSetting<number>(
-    "schedule_runner.last_run",
-  ).catch(() => null);
-  if (
-    typeof lastRun === "number" &&
-    Date.now() - lastRun < RUNNER_INTERVAL_MS
-  ) {
-    return;
-  }
-
-  // Set the timestamp BEFORE running so concurrent requests don't both fire
-  const { setSetting } = await import("./settings-store");
-  await setSetting("schedule_runner.last_run", Date.now());
-
-  await runDueSchedules();
+export async function tickScheduleRunner(): Promise<{
+  fired: number;
+  errors: string[];
+}> {
+  return runDueSchedules();
 }
 
 /**
- * Daily page-monitor sweep — re-fetches every active monitored page, diffs
+ * Page-monitor sweep — re-fetches every active monitored page, diffs
  * against the prior snapshot, inserts to pageChanges, and fires any wired
- * webhooks/automations on change. 24h cooldown.
+ * webhooks/automations on change.
+ *
+ * The scheduler decides when (daily). This used to keep a second 24h gate
+ * of its own, written BEFORE the work and wrapped in a catch-all — so the
+ * Automations screen showed "hourly", the real cadence was daily, a crash
+ * cost a full day, and a failure never reached Settings → Automations.
  */
-const PAGE_MONITOR_INTERVAL_MS = 24 * 60 * 60 * 1000;
-
 export async function tickPageMonitorRunner(): Promise<void> {
-  const lastRun = await getSetting<number>(
-    "page_monitor_runner.last_run",
-  ).catch(() => null);
-  if (
-    typeof lastRun === "number" &&
-    Date.now() - lastRun < PAGE_MONITOR_INTERVAL_MS
-  ) {
-    return;
-  }
-  const { setSetting } = await import("./settings-store");
-  await setSetting("page_monitor_runner.last_run", Date.now());
-
-  try {
-    const { checkAllMonitoredPages } = await import(
-      "@/app/monitor/actions"
-    );
-    await checkAllMonitoredPages();
-  } catch {
-    // Don't let scheduler failures break the dashboard render
-  }
+  const { checkAllMonitoredPages } = await import("@/app/monitor/actions");
+  await checkAllMonitoredPages();
 }
 
 export async function runDueSchedules(): Promise<{
@@ -150,22 +150,62 @@ export async function fireSchedule(scheduleId: number): Promise<void> {
   });
 
   if (!result.ok) {
+    // Leaving nextSendAt untouched made the schedule due again on every
+    // scheduler tick: the PDF was rebuilt in a headless browser and
+    // another error row logged ~96 times a day until someone noticed.
+    // Back off instead, and after a day of failures give up on this
+    // period and wait for the next regular slot.
+    const failuresKey = `automation.report_schedule.${s.id}.failures` as const;
+    const failures =
+      ((await getSetting<number>(failuresKey).catch(() => null)) ?? 0) + 1;
+    const { setSetting } = await import("./settings-store");
+    await setSetting(failuresKey, failures).catch(() => undefined);
+    const tz = await workspaceTimeZone();
+    const plan = nextAttemptAfterFailure(failures, new Date(), () =>
+      computeNextSendAt(
+        {
+          frequency: s.frequency,
+          dayOfMonth: s.dayOfMonth,
+          dayOfWeek: s.dayOfWeek,
+          hourOfDay: s.hourOfDay,
+        },
+        new Date(),
+        tz,
+      ),
+    );
+    await db
+      .update(reportSchedules)
+      .set({ nextSendAt: plan.at, updatedAt: new Date() })
+      .where(eq(reportSchedules.id, scheduleId));
     await logActivity({
       kind: "report.generated",
-      message: `Failed to email report for ${client.name}: ${result.error}`,
+      message: plan.gaveUp
+        ? `Gave up emailing the ${s.template} report for ${client.name} this period after ${failures} failed attempts: ${result.error}. Next try ${plan.at.toISOString().slice(0, 16).replace("T", " ")} UTC.`
+        : `Failed to email report for ${client.name} (attempt ${failures}): ${result.error}. Retrying ${plan.at.toISOString().slice(0, 16).replace("T", " ")} UTC.`,
       level: "error",
       clientId: client.id,
     });
-    return;
+    if (plan.gaveUp) await setSetting(failuresKey, 0).catch(() => undefined);
+    throw new Error(result.error);
+  }
+  {
+    const { setSetting } = await import("./settings-store");
+    await setSetting(`automation.report_schedule.${s.id}.failures`, 0).catch(
+      () => undefined,
+    );
   }
 
   // Advance nextSendAt
-  const next = computeNextSendAt({
-    frequency: s.frequency,
-    dayOfMonth: s.dayOfMonth,
-    dayOfWeek: s.dayOfWeek,
-    hourOfDay: s.hourOfDay,
-  });
+  const next = computeNextSendAt(
+    {
+      frequency: s.frequency,
+      dayOfMonth: s.dayOfMonth,
+      dayOfWeek: s.dayOfWeek,
+      hourOfDay: s.hourOfDay,
+    },
+    new Date(),
+    await workspaceTimeZone(),
+  );
   await db
     .update(reportSchedules)
     .set({
