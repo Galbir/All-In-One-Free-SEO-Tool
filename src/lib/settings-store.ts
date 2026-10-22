@@ -16,6 +16,8 @@ export type SettingKey =
    * last run, report-schedule failure counts. Same open-ended reasoning.
    */
   | `automation.${string}`
+  /** Highest invoice sequence number issued per year: `invoices.seq.<year>`. */
+  | `invoices.${string}`
   /** IANA time zone for schedules, e.g. "Asia/Kolkata". Unset = server time. */
   | "workspace.timezone"
   /**

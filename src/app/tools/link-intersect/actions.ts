@@ -2,7 +2,8 @@
 
 import { z } from "zod";
 import { linkIntersect, type IntersectResult } from "@/lib/link-intersect";
-import { saveToolRun } from "@/lib/tool-runs";
+import { recordToolRun } from "@/lib/tool-findings";
+import { linkIntersectFindings } from "@/lib/tool-finding-builders";
 import { guardAction } from "@/lib/action-guard";
 
 const domain = z.string().trim().min(3).max(255);
@@ -49,11 +50,15 @@ export async function runLinkIntersect(
 
   try {
     const result = await linkIntersect({ yourDomain, competitorDomains });
-    await saveToolRun({
+    // recordToolRun rather than saveToolRun: the opportunities become
+    // findings the rest of the app reads (the client's ranked list, the
+    // agent's task planner), instead of a table on this screen only.
+    await recordToolRun({
       toolId: "link-intersect",
       label: `${result.yourDomain} vs ${result.competitors.join(", ")}`,
       input: parsed.data,
       result: { ok: true, result },
+      findings: linkIntersectFindings(result),
     }).catch(() => undefined);
     return { ok: true, result };
   } catch (err) {

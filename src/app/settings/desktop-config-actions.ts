@@ -98,7 +98,9 @@ function resolveConfigPath(): string {
 export async function installDesktopConfig(): Promise<InstallResult> {
   await guardAction("settings");
   try {
-    const root = process.cwd();
+    // turbopackIgnore: these paths are written into a config file, not
+    // read by the server, so tracing them would pull in the whole project.
+    const root = /*turbopackIgnore: true*/ process.cwd();
 
     // Every path absolute, and tsconfig and the database named outright.
     // Claude Desktop does not run the server in the cwd the config asks

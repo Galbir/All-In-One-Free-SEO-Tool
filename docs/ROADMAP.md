@@ -2,7 +2,7 @@
 
 Public-facing roadmap for the SEO Tool. Community feedback shapes prioritization — file an issue with the `🔮 roadmap` label to upvote anything below.
 
-**Last updated:** February 2026
+**Last updated:** October 2026
 
 ---
 
@@ -12,7 +12,7 @@ The current `main` branch covers everything below. Install via [README → Insta
 
 - Multi-client management, niche detection (5 niches), tech-stack auto-detection (2,500+ technologies via Wappalyzer)
 - Full-site crawler with 30+ on-page checks, severity classification, "fix it for me" wizards
-- Daily rank tracking (unlimited keywords, mobile vs desktop, city-level), SERP-feature presence, striking-distance + cannibalization detectors
+- Rank tracking (unlimited keywords, each re-checked at least weekly in a rotating daily share; mobile vs desktop, city-level), SERP-feature presence, striking-distance + cannibalization detectors
 - Keyword research via Google autocomplete + PAA + Reddit + YouTube + Wikipedia (no paid API keys)
 - AI-powered content briefs, real-time content score, content decay detector, content gap analysis
 - Backlink profile (GSC + Ahrefs Webmaster Tools), toxic-link flagging, disavow generator, outreach hub, 314 curated backlink prospects
@@ -22,7 +22,8 @@ The current `main` branch covers everything below. Install via [README → Insta
 - White-label PDF reports with AI executive summary, scheduled email delivery, client portal with magic-link access
 - Invoice generator (INR + UPI, USD via PayPal)
 - WordPress plugin with one-click apply + full undo
-- Daily agent — 17 automated jobs per client per day
+- Daily agent — ~20 automated jobs a day across every client, plus a weekly block
+- Browser extension, programmatic SEO generator, hreflang validator + generator, GitHub PR generation, team accounts with roles + capacity view, chart annotations
 - Workflow builder, page change monitoring, custom monitors, webhook endpoints
 - Slack / Discord / Teams digests
 - AI providers — Ollama (free local), Gemini, Groq, OpenRouter (free tiers), OpenAI, Anthropic, DeepSeek, Perplexity (BYO key)
@@ -36,26 +37,11 @@ In priority order. Bumps happen based on community demand.
 ### 🛍️ Shopify app
 One-click installer in the Shopify App Store. Read/write product + collection meta, manage redirects, edit theme files, push JSON-LD schema. Same pattern as the WordPress plugin but native to Shopify's admin chrome.
 
-### 🌐 Browser extension (Chrome / Edge)
-Companion extension for the desktop tool. Capture data from any external SEO tool (GSC, GA4, PageSpeed UI, Search Console URL inspection) and pipe straight into your tool. "Send to my SEO tool" button on any page. Lets non-developers pull data from places that don't have official APIs.
-
 ### 📱 Mobile PWA
 Full progressive web app — installable on iOS/Android home screen, push notifications, offline rank reading, "tap to check ranking" on the go.
 
 ### 🔗 CRM integrations
 HubSpot first, then Pipedrive, Salesforce, Zoho. Maps organic traffic → leads → deals closed → revenue. Stakeholder reports finally show ROI in dollars, not just rankings — the single biggest gap in mid-market SEO tooling.
-
-### 🏗️ Programmatic SEO toolkit
-Generate hundreds of location / feature / comparison pages from a CSV + template. Thin-content safeguards built-in. The thing SaaS teams pay $5k/month for.
-
-### 🌍 International / hreflang manager
-Multi-country, multi-language site management. Hreflang validator + generator + audit. Detects common mistakes (return-tag pairs, language code conflicts, missing self-references).
-
-### 🤖 GitHub PR generation
-For developer clients — tool finds an issue, generates the fix as a PR against their repo, you review + merge. Closes the loop for Next.js / Nuxt / SvelteKit / static-site clients who don't run a CMS.
-
-### 👥 Team management + capacity planning
-Multi-user workspaces with roles. See who's overbooked. Auto-assign tasks by workload. Required for agencies with 4+ team members.
 
 ### 📊 Stakeholder report variants
 Same data, different audiences. CEO sees revenue and ROI. CMO sees traffic and pipeline. CTO sees technical health. Junior marketer sees what's been done. One report-builder, four audience-aware exports.
@@ -66,7 +52,7 @@ Record a client call, tool transcribes + extracts action items into tasks. Firef
 ### 🔌 Plugin marketplace
 Community-built extensions. Ship your own audit rule, niche template, report block, daily-agent job. Curated + signed.
 
-### 🧠 Custom dashboards + chart annotations
+### 🧠 Custom dashboards
 Drag-and-drop dashboards per client. Annotate spikes with notes (algorithm update, big campaign launched, content publish event). Makes monthly review conversations 3× shorter.
 
 ---
@@ -91,14 +77,8 @@ Already shipped basic Nginx/Apache log analyzer. v2: full crawl pattern visualiz
 ### Public API (expanded)
 v1 API exists at `/api/v1/*` (read access for keywords, clients, audits, rankings). v2: full write access, webhook endpoints, public OpenAPI spec, SDK in JS + Python.
 
-### Annotations on charts
-Lifecycle events overlaid on traffic + ranking charts: published content, algorithm updates, hosting changes, fixed issues. Required for "what caused this change?" investigations.
-
 ### Audit logs (multi-user)
 Who changed what when, across the workspace. Required for agency compliance.
-
-### Proposal generator
-For freelancers + agencies — generate a custom SEO proposal PDF from an audit result + a service-tier template. Replaces 4 hours of copy-paste per pitch.
 
 ### Multi-touch attribution
 Beyond first-touch organic — full multi-touch with cross-channel weighting. Pulls from GA4 + CRM data already integrated.

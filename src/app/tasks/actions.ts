@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { clients, tasks } from "@/db/schema";
@@ -20,6 +20,85 @@ function nextDueDate(prev: Date | null, interval: Recur): Date {
   return next;
 }
 
+type TaskRow = typeof tasks.$inferSelect;
+
+/**
+ * Change one task's status, with everything that goes with it: who
+ * completed it, the activity entry, and the next instance of a recurring
+ * task. Shared by the single and bulk paths — bulk "mark done" used to
+ * skip both the activity log and recurrence.
+ */
+async function applyTaskStatus(
+  existing: TaskRow,
+  status: "todo" | "in_progress" | "done" | "skipped",
+  completedByUserId: number | null,
+): Promise<void> {
+  // Record who finished it. Cleared when a task is reopened, so the
+  // column always means "who completed the state it's in now" rather
+  // than "who touched it once" — /capacity and the monthly report both
+  // read it as the former.
+  await db
+    .update(tasks)
+    .set({
+      status,
+      completedByUserId: status === "done" ? completedByUserId : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, existing.id));
+
+  if (status !== "done" || existing.status === "done") return;
+
+  await logActivity({
+    kind: "task.completed",
+    message: `Completed task: ${existing.title}`,
+    level: "success",
+    clientId: existing.clientId,
+    entityType: "task",
+    entityId: existing.id,
+  });
+
+  if (!existing.recurringInterval) return;
+
+  // Done → reopened → done again used to clone a second next instance
+  // each time (easy on the Kanban board). If an open instance of this
+  // recurring task already exists, that is the next one.
+  const [openInstance] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.clientId, existing.clientId),
+        eq(tasks.title, existing.title),
+        eq(tasks.recurringInterval, existing.recurringInterval),
+        inArray(tasks.status, ["todo", "in_progress"]),
+        ne(tasks.id, existing.id),
+      ),
+    )
+    .limit(1);
+  if (openInstance) return;
+
+  await db.insert(tasks).values({
+    clientId: existing.clientId,
+    title: existing.title,
+    description: existing.description,
+    whyItMatters: existing.whyItMatters,
+    // These were dropped, so recurring work lost its owner, its estimate
+    // and its link to the tool that does it.
+    toolPath: existing.toolPath,
+    priority: existing.priority,
+    status: "todo",
+    dueDate: nextDueDate(
+      existing.dueDate,
+      existing.recurringInterval as Recur,
+    ),
+    recurringInterval: existing.recurringInterval,
+    estimatedMinutes: existing.estimatedMinutes,
+    assignedUserId: existing.assignedUserId,
+    source: existing.source,
+    sourceRef: existing.sourceRef,
+  });
+}
+
 export async function setTaskStatus(
   taskId: number,
   status: "todo" | "in_progress" | "done" | "skipped",
@@ -34,50 +113,9 @@ export async function setTaskStatus(
     .limit(1);
   if (!existing) return;
 
-  // Record who finished it. Cleared when a task is reopened, so the
-  // column always means "who completed the state it's in now" rather
-  // than "who touched it once" — /capacity and the monthly report both
-  // read it as the former.
   const completedByUserId =
     status === "done" ? await currentUserId() : null;
-
-  await db
-    .update(tasks)
-    .set({ status, completedByUserId, updatedAt: new Date() })
-    .where(eq(tasks.id, taskId));
-
-  if (status === "done" && existing.status !== "done") {
-    await logActivity({
-      kind: "task.completed",
-      message: `Completed task: ${existing.title}`,
-      level: "success",
-      clientId: existing.clientId,
-      entityType: "task",
-      entityId: existing.id,
-    });
-  }
-
-  // If a recurring task was just marked done, clone the next instance.
-  if (
-    status === "done" &&
-    existing.recurringInterval &&
-    existing.status !== "done"
-  ) {
-    const nextDue = nextDueDate(
-      existing.dueDate,
-      existing.recurringInterval as Recur,
-    );
-    await db.insert(tasks).values({
-      clientId: existing.clientId,
-      title: existing.title,
-      description: existing.description,
-      whyItMatters: existing.whyItMatters,
-      priority: existing.priority,
-      status: "todo",
-      dueDate: nextDue,
-      recurringInterval: existing.recurringInterval,
-    });
-  }
+  await applyTaskStatus(existing, status, completedByUserId);
 
   revalidatePath("/tasks");
   revalidatePath("/");
@@ -239,7 +277,6 @@ export async function setTaskEstimate(
 }
 
 // Bulk operations
-import { inArray } from "drizzle-orm";
 
 function validIds(ids: number[]): number[] {
   return ids.filter((id) => Number.isFinite(id) && id > 0);
@@ -252,14 +289,12 @@ export async function bulkSetTaskStatus(
   await guardAction("edit");
   const valid = validIds(ids);
   if (valid.length === 0) return;
-  await db
-    .update(tasks)
-    .set({
-      status,
-      completedByUserId: status === "done" ? await currentUserId() : null,
-      updatedAt: new Date(),
-    })
-    .where(inArray(tasks.id, valid));
+  const completedByUserId =
+    status === "done" ? await currentUserId() : null;
+  const rows = await db.select().from(tasks).where(inArray(tasks.id, valid));
+  for (const row of rows) {
+    await applyTaskStatus(row, status, completedByUserId);
+  }
   revalidatePath("/tasks");
   revalidatePath("/");
 }
