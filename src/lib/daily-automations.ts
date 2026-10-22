@@ -7,8 +7,9 @@
  *   2. tickQueuePublish() — find approved queue items, route each to the
  *      right publisher (WordPress / GBP / etc), mark published or failed.
  *
- * Both are called from daily-agent.ts so the existing 24h ticker drives
- * them. Nothing here runs more often than that.
+ * Both are driven by the scheduler's `content_schedules` runner (every 15
+ * minutes), so a schedule runs at its own time of day. daily-agent.ts also
+ * calls them as part of its 24h sweep; whichever comes first does the work.
  */
 
 import { and, asc, desc, eq, gte, lte, or, isNull } from "drizzle-orm";
