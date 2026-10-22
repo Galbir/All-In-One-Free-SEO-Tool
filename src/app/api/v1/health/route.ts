@@ -1,5 +1,3 @@
-import { isLocalRequest } from "@/lib/admin-auth";
-
 export const dynamic = "force-dynamic";
 
 /**
@@ -41,7 +39,11 @@ export async function GET(req: Request) {
     version: "v1",
     time: new Date().toISOString(),
   };
-  if (!isLocalRequest(req)) return corsJson(base);
+  // The Host header, not the request URL: Next builds the URL from the
+  // bound address, which is "localhost" even for a remote caller.
+  const host = (req.headers.get("host") ?? "").replace(/:\d+$/, "").toLowerCase();
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(host);
+  if (!local) return corsJson(base);
   return corsJson({ ...base, installRoot: process.cwd(), pid: process.pid });
 }
 

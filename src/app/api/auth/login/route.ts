@@ -8,15 +8,50 @@ import {
   issueSession,
   normaliseEmail,
 } from "@/lib/auth";
-import { checkRateLimit, clientKey } from "@/lib/rate-limit";
+import { checkRateLimit, clientKey, isRateLimited } from "@/lib/rate-limit";
 
 /**
- * Attempts allowed per window, per caller and per account. There was no
- * limit at all: the 250ms delay on a wrong password is per request, so
- * parallel requests sprayed passwords at full speed.
+ * FAILED attempts allowed per window, per account and per caller. There
+ * was no limit at all: the 250ms delay on a wrong password is per
+ * request, so parallel requests sprayed passwords at full speed.
+ *
+ * Only failures count, so a team signing in in the morning never trips
+ * it. Without a trusted proxy every caller shares one key (Next does not
+ * expose the socket address), so that key gets a higher ceiling; the
+ * per-account limit is the one that stops guessing.
  */
-const LOGIN_ATTEMPTS = 10;
+const LOGIN_FAILURES_PER_ACCOUNT = 10;
+const LOGIN_FAILURES_PER_CALLER = 10;
+const LOGIN_FAILURES_SHARED = 50;
 const LOGIN_WINDOW_MS = 15 * 60_000;
+
+function failureKeys(req: NextRequest, email: string | null) {
+  const caller = clientKey(req);
+  const keys: { key: string; max: number }[] = [
+    {
+      key: `login:${caller}`,
+      max: caller === "shared" ? LOGIN_FAILURES_SHARED : LOGIN_FAILURES_PER_CALLER,
+    },
+  ];
+  if (email) {
+    keys.push({ key: `login:email:${normaliseEmail(email)}`, max: LOGIN_FAILURES_PER_ACCOUNT });
+  }
+  return keys;
+}
+
+function blocked(keys: { key: string; max: number }[]): number | null {
+  for (const k of keys) {
+    const r = isRateLimited(k.key, k.max);
+    if (r.limited) return r.resetAt;
+  }
+  return null;
+}
+
+function recordFailure(keys: { key: string; max: number }[]): void {
+  for (const k of keys) {
+    checkRateLimit(k.key, { max: k.max, windowMs: LOGIN_WINDOW_MS });
+  }
+}
 
 function tooMany(resetAt: number) {
   const mins = Math.max(1, Math.ceil((resetAt - Date.now()) / 60_000));
@@ -47,11 +82,12 @@ export async function POST(req: NextRequest) {
     | null;
   const submitted = body?.password ?? "";
 
-  const byCaller = checkRateLimit(`login:${clientKey(req)}`, {
-    max: LOGIN_ATTEMPTS,
-    windowMs: LOGIN_WINDOW_MS,
-  });
-  if (!byCaller.allowed) return tooMany(byCaller.resetAt);
+  const keys = failureKeys(
+    req,
+    typeof body?.email === "string" && body.email ? body.email : null,
+  );
+  const until = blocked(keys);
+  if (until !== null) return tooMany(until);
 
   if (accountsEnabled()) {
     const email = body?.email ?? "";
@@ -61,16 +97,9 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    // Per account too: without a trusted proxy every caller shares one
-    // key above, and spraying one account from many addresses is the
-    // attack this is for.
-    const byAccount = checkRateLimit(`login:email:${normaliseEmail(email)}`, {
-      max: LOGIN_ATTEMPTS,
-      windowMs: LOGIN_WINDOW_MS,
-    });
-    if (!byAccount.allowed) return tooMany(byAccount.resetAt);
     const result = await authenticate(email, submitted);
     if (!result.ok) {
+      recordFailure(keys);
       // Same jitter as below — a fast "no such user" next to a slow
       // "wrong password" is exactly how account enumeration works.
       await new Promise((r) => setTimeout(r, 250));
@@ -96,6 +125,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!timingSafeEqual(submitted, required)) {
+    recordFailure(keys);
     // Small jitter on top of the constant-time compare — defense in depth
     // against any timing inference at the network layer.
     await new Promise((r) => setTimeout(r, 250));

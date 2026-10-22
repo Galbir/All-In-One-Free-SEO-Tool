@@ -72,8 +72,17 @@ export function isLocalRequest(req: Request): boolean {
   //    cases the Host header gives a weak signal — but ONLY when
   //    combined with the fact that the socket binding is local.
   const hostHeader = req.headers.get("host") ?? "";
-  const hostname = hostHeader.split(":")[0].toLowerCase();
+  const hostname = (
+    hostHeader.startsWith("[")
+      ? hostHeader.slice(0, hostHeader.indexOf("]") + 1) // [::1]:3000
+      : hostHeader.split(":")[0]
+  ).toLowerCase();
   if (LOCAL_HOSTS.has(hostname)) return true;
+  // A Host header that names something else is a remote caller. Falling
+  // through to the URL check below let it pass anyway: Next builds the
+  // request URL from the address it is bound to, which reads
+  // "localhost" for every caller.
+  if (hostHeader) return false;
 
   // 3. URL fallback — covers curl/scripts that don't send Host
   try {

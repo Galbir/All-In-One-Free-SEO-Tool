@@ -53,6 +53,20 @@ export function checkRateLimit(key: string, opts: RateLimitOpts): {
 }
 
 /**
+ * Is `key` currently over `max`? Reads without counting — for limits
+ * that should only count failures (a sign-in limit that counted every
+ * attempt would lock a whole team out on a busy morning).
+ */
+export function isRateLimited(key: string, max: number): {
+  limited: boolean;
+  resetAt: number;
+} {
+  const b = buckets.get(key);
+  if (!b || Date.now() >= b.resetAt) return { limited: false, resetAt: 0 };
+  return { limited: b.count >= max, resetAt: b.resetAt };
+}
+
+/**
  * The caller's IP, when it can be known, or null.
  *
  * `X-Forwarded-For` is a list the client starts and each proxy appends
