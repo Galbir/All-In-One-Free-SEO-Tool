@@ -69,27 +69,11 @@ export async function approveAndPublishNow(
       updatedAt: new Date(),
     })
     .where(eq(publishQueue.id, itemId));
-  const { tickQueuePublish } = await import("@/lib/daily-automations");
-  const r = await tickQueuePublish();
+  const { publishQueueItemNow } = await import("@/lib/daily-automations");
+  const r = await publishQueueItemNow(itemId);
   revalidatePath(`/clients/${clientId}/queue`);
-  if (r.published > 0) return { ok: true, message: "Published." };
-  if (r.failed > 0) {
-    // Re-read to surface the error message
-    const [post] = await db
-      .select()
-      .from(publishQueue)
-      .where(eq(publishQueue.id, itemId))
-      .limit(1);
-    return {
-      ok: false,
-      message: `Publish failed: ${post?.errorMsg ?? "unknown error"}`,
-    };
-  }
-  return {
-    ok: true,
-    message:
-      "Approved but not picked up immediately. Will retry on the next tick.",
-  };
+  if (r.ok) return { ok: true, message: "Published." };
+  return { ok: false, message: `Publish failed: ${r.error}` };
 }
 
 export async function rejectQueueItem(
