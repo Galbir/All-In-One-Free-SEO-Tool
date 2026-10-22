@@ -1,6 +1,6 @@
 # Codebase Audit — Bugs, Wiring Problems, Improvements & Missing Features
 
-**Version audited:** v0.6.3 (`main` @ `b80e0af`) · **Date:** 2026-10-22
+**Version audited:** v0.6.3 (`main` @ `b80e0af`) · **Date:** 2026-10-22 · **Fixed in:** v0.7.0
 
 ## How this audit was done
 
@@ -18,6 +18,26 @@
 The automated checks are all green, so every finding below comes from reading code or poking a running server. Each finding is labelled **[verified live]** if I reproduced it against a running instance, or **[code]** if I traced it in source.
 
 Severity: 🔴 Critical · 🟠 High · 🟡 Medium · 🔵 Low
+
+---
+
+## Status — fixed in v0.7.0
+
+Every finding below was addressed in **v0.7.0** ([release notes](docs/releases/v0.7.0.md)), together with reported issue #43 (GBP posting). Where a fix differs from the suggestion here, or is partial, the reason is given:
+
+| # | Status |
+|---|---|
+| 1–21, 23–25, 27, 28, 30 | ✅ Fixed, with tests |
+| 22 | ✅ Deleting a client is owner-only. **Not done:** an archive/pause state (listed under missing features; it needs a migration and filtering everywhere) |
+| 26 | ⚠️ **Not fixed.** The tracing warning comes from shared server chunks; `turbopackIgnore` hints didn't remove it. It only affects the size of the optional standalone package (`pnpm package`), not the release zip, Docker or the app |
+| 29 | ✅ Handled differently: declaring the indexes in `schema.ts` would make `drizzle-kit` emit `CREATE INDEX` statements that fail on existing databases during upgrade. Instead, a test (`src/db/migration-indexes.test.ts`) fails if any index the migrations create is missing after migrating |
+
+Also found and fixed while verifying the upgrade path:
+- **Updates never rebuilt the production bundle.** The launcher's Update button and Settings → Update pulled new code, but the app kept serving the old `.next` build. `start:daily` now rebuilds once when the build's version stamp doesn't match `package.json`.
+- With no password, a request whose `Host` header named another machine still passed the admin "local only" check, because Next builds `request.url` from the bound address.
+- The page monitor called `revalidatePath` from the background scheduler, which throws there; the old catch-all hid it.
+
+Known limitation: members are limited to their clients wherever an action receives a client id. A few actions receive only an item id (a task, an invoice); those are role-checked but don't yet resolve the item's client.
 
 ---
 
