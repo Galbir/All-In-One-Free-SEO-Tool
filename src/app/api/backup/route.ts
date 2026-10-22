@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function dbPath(): string {
-  return process.env.SEO_DB_PATH ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data.db");
+  return process.env.SEO_DB_PATH ?? path.join(process.cwd(), "data.db");
 }
 
 export async function GET(req: Request) {
