@@ -104,6 +104,39 @@ function runners(): Runner[] {
       run: async () => (await import("./agent/run")).runAgentForAllClients(),
     },
     {
+      // Per-client automations (blog / GBP / social drafts, auto-publish).
+      //
+      // These used to run only as a step of `daily_agent`, which fires once
+      // per 24h at whatever time the app happened to start. A schedule set
+      // for 09:00 UTC was skipped whenever the sweep ran earlier in the
+      // day, and the next sweep came a full day later, so it ran every
+      // other day or never. Checking every 15 minutes makes the schedule's
+      // own run time the thing that decides.
+      id: "content_schedules",
+      label: "Content schedules",
+      everyMs: 15 * MINUTE,
+      run: async () => {
+        const { tickScheduleGeneration, tickQueuePublish } = await import(
+          "./daily-automations"
+        );
+        const gen = await tickScheduleGeneration();
+        const pub = await tickQueuePublish();
+        return { ...gen, ...pub };
+      },
+      summarise: (r) => {
+        const x = r as {
+          generated?: number;
+          skipped?: number;
+          published?: number;
+          failed?: number;
+        } | null;
+        if (!x || (!x.generated && !x.skipped && !x.published && !x.failed)) {
+          return null;
+        }
+        return `${x.generated ?? 0} generated, ${x.published ?? 0} published, ${x.failed ?? 0} failed`;
+      },
+    },
+    {
       id: "schedule_runner",
       label: "Scheduled reports",
       everyMs: 15 * MINUTE,
