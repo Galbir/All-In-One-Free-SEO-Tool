@@ -6,6 +6,7 @@ import {
   type SocialPreview,
 } from "@/lib/page-inspectors";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   url: z
@@ -24,6 +25,7 @@ export async function runSocial(
   _prev: SocialState | null,
   formData: FormData,
 ): Promise<SocialState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({ url: formData.get("url") });
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid URL" };

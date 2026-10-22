@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { setSetting } from "@/lib/settings-store";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Save the auto-backup preferences. Bound to the form on
@@ -9,6 +10,7 @@ import { setSetting } from "@/lib/settings-store";
  * accidental "retention=999999999" can't fill the disk.
  */
 export async function saveAutoBackupSettings(formData: FormData) {
+  await guardAction("settings", formData.get("clientId"));
   const enabled = formData.get("enabled") === "on";
   const cadenceRaw = Number(formData.get("cadence_hours"));
   const retentionRaw = Number(formData.get("retention"));

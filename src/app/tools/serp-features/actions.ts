@@ -6,6 +6,7 @@ import {
   captureSerpSnapshot,
   deleteSnapshot,
 } from "@/lib/serp-feature-tracker";
+import { guardAction } from "@/lib/action-guard";
 
 const captureSchema = z.object({
   query: z.string().trim().min(2).max(200),
@@ -21,6 +22,7 @@ export async function runCapture(
   _prev: CaptureState | null,
   formData: FormData,
 ): Promise<CaptureState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = captureSchema.safeParse({
     query: formData.get("query"),
     country: formData.get("country") || "US",
@@ -39,6 +41,7 @@ export async function runCapture(
 }
 
 export async function removeSnapshot(id: number): Promise<{ ok: true }> {
+  await guardAction("edit");
   await deleteSnapshot(id);
   revalidatePath("/tools/serp-features");
   return { ok: true };

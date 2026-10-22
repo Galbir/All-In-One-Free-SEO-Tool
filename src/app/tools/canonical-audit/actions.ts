@@ -5,6 +5,7 @@ import { auditCanonicals, type CanonicalAuditResult } from "@/lib/canonical-audi
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { clientIdFrom } from "@/lib/client-id-field";
 import type { CanonicalIssue } from "@/lib/canonical-audit";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * One finding per kind of canonical problem, not one per page.
@@ -78,6 +79,7 @@ export async function runCanonical(
   _prev: CanonState | null,
   formData: FormData,
 ): Promise<CanonState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     startUrl: formData.get("startUrl"),
     maxPages: formData.get("maxPages") || 80,

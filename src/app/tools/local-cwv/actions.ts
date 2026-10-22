@@ -6,6 +6,7 @@ import { measureCwvPsi } from "@/lib/local-cwv-psi";
 import { recordToolRun } from "@/lib/tool-findings";
 import { cwvFindings } from "@/lib/tool-finding-builders";
 import type { PsiFailure } from "@/lib/psi-error";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   url: z
@@ -32,6 +33,7 @@ export async function runLocalCwv(
   _prev: LocalCwvState | null,
   formData: FormData,
 ): Promise<LocalCwvState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     url: formData.get("url"),
     device: formData.get("device") || "mobile",

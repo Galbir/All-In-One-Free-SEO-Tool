@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { chooseAutonomy } from "@/lib/agent/autonomy";
 import type { AutonomyLevel } from "@/lib/agent/autonomy-levels";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Record the answer to the first-run autonomy question.
@@ -15,6 +16,7 @@ import { logActivity } from "@/lib/activity";
 export async function chooseAutonomyAction(
   level: AutonomyLevel,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await guardAction("settings");
   const allowed: AutonomyLevel[] = ["off", "suggest", "apply_safe", "apply_all"];
   if (!allowed.includes(level)) {
     return { ok: false, error: "Unknown autonomy level." };

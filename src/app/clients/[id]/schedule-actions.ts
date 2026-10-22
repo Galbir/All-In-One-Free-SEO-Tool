@@ -10,6 +10,7 @@ import {
   sendReportEmail,
 } from "@/lib/report-mailer";
 import { getSmtpConfig } from "@/lib/mailer";
+import { guardAction } from "@/lib/action-guard";
 
 const scheduleInput = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -36,6 +37,7 @@ export async function saveSchedule(
   _prev: SaveScheduleResult | null,
   formData: FormData,
 ): Promise<SaveScheduleResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = scheduleInput.safeParse({
     clientId: formData.get("clientId"),
     template: formData.get("template"),
@@ -110,6 +112,7 @@ export async function saveSchedule(
 }
 
 export async function deleteSchedule(scheduleId: number, clientId: number) {
+  await guardAction("edit", clientId);
   await db
     .delete(reportSchedules)
     .where(eq(reportSchedules.id, scheduleId));
@@ -121,6 +124,7 @@ export async function sendReportNow(opts: {
   template: "executive" | "detailed" | "technical";
   recipients: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit", opts?.clientId);
   const smtp = await getSmtpConfig();
   if (!smtp) {
     return {

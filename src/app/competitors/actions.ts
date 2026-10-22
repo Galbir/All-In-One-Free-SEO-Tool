@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { competitors } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 const competitorInput = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -26,6 +27,7 @@ export async function addCompetitor(
   _prev: AddCompetitorResult | null,
   formData: FormData,
 ): Promise<AddCompetitorResult> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = {
     clientId: formData.get("clientId"),
     name: formData.get("name"),
@@ -53,6 +55,7 @@ export async function addCompetitor(
 }
 
 export async function deleteCompetitor(competitorId: number) {
+  await guardAction("edit");
   await db.delete(competitors).where(eq(competitors.id, competitorId));
   revalidatePath("/competitors");
 }

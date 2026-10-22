@@ -10,8 +10,10 @@ import {
   type YouTubeVideo,
 } from "@/lib/youtube-research";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export async function saveYouTubeKey(formData: FormData): Promise<void> {
+  await guardAction("edit", formData.get("clientId"));
   const key = String(formData.get("key") ?? "").trim();
   if (!key) return;
   await setYouTubeApiKey(key);
@@ -19,6 +21,7 @@ export async function saveYouTubeKey(formData: FormData): Promise<void> {
 }
 
 export async function clearYouTubeKey(): Promise<void> {
+  await guardAction("edit");
   await clearYouTubeApiKey();
   revalidatePath("/tools/youtube");
 }
@@ -41,6 +44,7 @@ export async function researchOnYouTube(
   _prev: YouTubeResearchState | null,
   formData: FormData,
 ): Promise<YouTubeResearchState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     query: formData.get("query"),
     order: formData.get("order") || undefined,

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { backlinks } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 const backlinkInput = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -35,6 +36,7 @@ export async function addBacklink(
   _prev: AddBacklinkResult | null,
   formData: FormData,
 ): Promise<AddBacklinkResult> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = {
     clientId: formData.get("clientId"),
     sourceUrl: formData.get("sourceUrl"),
@@ -75,6 +77,7 @@ export async function setBacklinkStatus(
   backlinkId: number,
   status: "active" | "lost" | "disavow",
 ) {
+  await guardAction("edit");
   await db
     .update(backlinks)
     .set({ status, updatedAt: new Date() })
@@ -83,6 +86,7 @@ export async function setBacklinkStatus(
 }
 
 export async function deleteBacklink(backlinkId: number) {
+  await guardAction("edit");
   await db.delete(backlinks).where(eq(backlinks.id, backlinkId));
   revalidatePath("/backlinks");
 }
@@ -150,6 +154,7 @@ export async function logBuiltLink(
   _prev: LogLinkResult | null,
   formData: FormData,
 ): Promise<LogLinkResult> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = {
     clientId: formData.get("clientId"),
     sourceUrl: formData.get("sourceUrl"),
@@ -269,6 +274,7 @@ export async function importAhrefsBacklinks(
   clientId: number,
   csvText: string,
 ): Promise<AhrefsImportResult> {
+  await guardAction("edit", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0) {
     return { ok: false, error: "Invalid clientId" };
   }

@@ -7,6 +7,7 @@ import { db } from "@/db/client";
 import { shortLinks } from "@/db/schema";
 import { findUniqueSlug } from "@/lib/short-links";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 const createSchema = z.object({
   clientId: z.coerce
@@ -75,6 +76,7 @@ export async function createShortLink(
   _prev: CreateShortLinkResult | null,
   formData: FormData,
 ): Promise<CreateShortLinkResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = createSchema.safeParse({
     clientId: formData.get("clientId") || undefined,
     destination: formData.get("destination"),
@@ -139,6 +141,7 @@ export async function createShortLink(
 }
 
 export async function deleteShortLink(id: number): Promise<void> {
+  await guardAction("edit");
   if (!Number.isFinite(id) || id <= 0) return;
   await db.delete(shortLinks).where(eq(shortLinks.id, id));
   revalidatePath("/links");
@@ -167,6 +170,7 @@ export async function importShortLinksCsv(
   _prev: ImportShortLinksResult | null,
   formData: FormData,
 ): Promise<ImportShortLinksResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = csvImportSchema.safeParse({
     clientId: formData.get("clientId") || undefined,
     csv: formData.get("csv"),

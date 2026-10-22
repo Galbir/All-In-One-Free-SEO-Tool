@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, manualReportData } from "@/db/schema";
 import { callAI, lastAiFailure } from "@/lib/ai-call";
+import { guardAction } from "@/lib/action-guard";
 
 export type ParseState =
   | {
@@ -54,6 +55,7 @@ export async function parseReportDataPaste(
   _prev: ParseState,
   formData: FormData,
 ): Promise<ParseState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const rawText = String(formData.get("rawText") ?? "").trim();
 
@@ -170,11 +172,13 @@ export async function parseReportDataPaste(
 }
 
 export async function deleteEntry(id: number): Promise<void> {
+  await guardAction("edit");
   await db.delete(manualReportData).where(eq(manualReportData.id, id));
   revalidatePath("/report-data");
 }
 
 export async function listForClient(clientId: number) {
+  await guardAction("read", clientId);
   return db
     .select()
     .from(manualReportData)

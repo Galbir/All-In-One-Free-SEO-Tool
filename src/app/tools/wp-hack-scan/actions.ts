@@ -6,6 +6,7 @@ import {
 } from "@/lib/wp-hack-scanner";
 import { recordToolRun } from "@/lib/tool-findings";
 import { wpHackFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 export type WpHackState =
   | { ok: true; report: HackScanReport }
@@ -16,6 +17,7 @@ export async function runWpHackScan(
   _prev: WpHackState,
   formData: FormData,
 ): Promise<WpHackState> {
+  await guardAction("edit", formData.get("clientId"));
   const url = String(formData.get("url") ?? "").trim();
   if (!url) return { ok: false, error: "Enter your site URL." };
   try {

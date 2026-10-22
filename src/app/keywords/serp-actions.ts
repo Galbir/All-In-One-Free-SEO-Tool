@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { clients, keywordRankings, keywords, serpScans } from "@/db/schema";
 import { scanSerp } from "@/lib/serp-scanner";
+import { guardAction } from "@/lib/action-guard";
 
 export type RunSerpScanResult =
   | { ok: true; id: number; aiOverviewPresent: boolean; topResults: number }
@@ -13,6 +14,7 @@ export type RunSerpScanResult =
 export async function runSerpScan(
   keywordId: number,
 ): Promise<RunSerpScanResult> {
+  await guardAction("edit");
   const [k] = await db
     .select()
     .from(keywords)

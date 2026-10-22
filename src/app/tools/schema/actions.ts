@@ -4,6 +4,7 @@ import { fetchSiteMetadata } from "@/lib/site-metadata";
 import { callAI, lastAiFailure } from "@/lib/ai-call";
 import type { AiFailure } from "@/lib/ai-error";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type SchemaType =
   | "Article"
@@ -32,6 +33,7 @@ export async function generateSchema(opts: {
   url?: string;
   notes?: string;
 }): Promise<GenerateSchemaResult> {
+  await guardAction("edit");
   const lines: string[] = [];
   lines.push(`Type: ${opts.type}`);
 

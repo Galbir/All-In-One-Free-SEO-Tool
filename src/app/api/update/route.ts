@@ -97,7 +97,7 @@ async function isBehind(remote: string): Promise<boolean | null> {
 }
 
 export async function GET(req: Request) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
 
   const [local, remote] = await Promise.all([getLocalSha(), getRemoteSha()]);
@@ -169,7 +169,7 @@ async function detectPm(): Promise<"pnpm" | "npm"> {
 }
 
 export async function POST(req: Request) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
 
   if (process.env.RUNNING_IN_DOCKER === "1") {

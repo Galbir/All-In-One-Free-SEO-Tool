@@ -38,7 +38,7 @@ function dbPath(): string {
 }
 
 export async function GET(req: Request) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
 
   const src = dbPath();

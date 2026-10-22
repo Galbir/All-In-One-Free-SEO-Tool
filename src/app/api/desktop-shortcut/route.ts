@@ -48,7 +48,7 @@ function getPaths() {
 }
 
 export async function GET(req: Request) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
 
   if (process.platform !== "win32") {
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
 
   if (process.platform !== "win32") {
@@ -141,7 +141,7 @@ Write-Output 'ok'
 }
 
 export async function DELETE(req: Request) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
 
   if (process.platform !== "win32") {

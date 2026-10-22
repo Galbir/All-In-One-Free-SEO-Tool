@@ -86,3 +86,17 @@ export function requireScope(
   if (scope === "write") return scopes.includes("write");
   return false;
 }
+
+/**
+ * `?limit=` as a positive integer no larger than `max`. `?limit=abc`
+ * used to reach `.limit(NaN)`, and `?limit=-5` a negative limit.
+ */
+export function parseLimit(
+  raw: string | null,
+  fallback: number,
+  max: number,
+): number {
+  const n = Number(raw);
+  if (raw === null || raw === "" || !Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.min(Math.floor(n), max));
+}

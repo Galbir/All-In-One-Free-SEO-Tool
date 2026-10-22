@@ -6,6 +6,7 @@ import {
   type AnchorDistribution,
 } from "@/lib/page-inspectors";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   url: z
@@ -26,6 +27,7 @@ export async function runAnchor(
   _prev: AnchorState | null,
   formData: FormData,
 ): Promise<AnchorState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     url: formData.get("url"),
     brandTerms: formData.get("brandTerms") ?? "",

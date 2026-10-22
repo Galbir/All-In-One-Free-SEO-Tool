@@ -153,7 +153,7 @@ export async function issueSession(user: User): Promise<void> {
   });
 }
 
-async function isHttps(): Promise<boolean> {
+export async function isHttps(): Promise<boolean> {
   if (process.env.SEO_COOKIE_SECURE === "1") return true;
   try {
     const h = await headers();

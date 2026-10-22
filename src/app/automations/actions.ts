@@ -38,6 +38,7 @@ export async function createAutomation(
   _prev: SaveAutomationResult | null,
   formData: FormData,
 ): Promise<SaveAutomationResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     name: formData.get("name"),
     trigger: formData.get("trigger"),
@@ -97,6 +98,7 @@ export async function createAutomation(
 }
 
 export async function setAutomationEnabled(id: number, enabled: boolean) {
+  await guardAction("edit");
   if (!Number.isFinite(id) || id <= 0) return;
   await db
     .update(automations)
@@ -106,6 +108,7 @@ export async function setAutomationEnabled(id: number, enabled: boolean) {
 }
 
 export async function deleteAutomation(id: number) {
+  await guardAction("edit");
   if (!Number.isFinite(id) || id <= 0) return;
   await db.delete(automations).where(eq(automations.id, id));
   revalidatePath("/automations");
@@ -115,6 +118,7 @@ export async function testWebhook(url: string): Promise<
   | { ok: true; status: number }
   | { ok: false; error: string }
 > {
+  await guardAction("edit");
   if (!/^https?:\/\//i.test(url)) {
     return { ok: false, error: "Webhook URL must start with http(s)://" };
   }
@@ -146,12 +150,14 @@ export async function testWebhook(url: string): Promise<
 }
 
 import { workflowTemplates } from "@/lib/workflow-templates";
+import { guardAction } from "@/lib/action-guard";
 
 export async function installWorkflowTemplate(input: {
   templateId: string;
   clientId?: number | null;
   webhookUrl?: string;
 }): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+  await guardAction("edit", input?.clientId);
   const tmpl = workflowTemplates.find((t) => t.id === input.templateId);
   if (!tmpl) return { ok: false, error: "Unknown template" };
 

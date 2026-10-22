@@ -6,6 +6,7 @@ import {
 } from "@/lib/reputation-abuse-risk";
 import { recordToolRun } from "@/lib/tool-findings";
 import { reputationRiskFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 export type ScanState =
   | { ok: true; report: RiskReport }
@@ -16,6 +17,7 @@ export async function scanForRisk(
   _prev: ScanState,
   formData: FormData,
 ): Promise<ScanState> {
+  await guardAction("edit", formData.get("clientId"));
   const url = String(formData.get("url") ?? "").trim();
   if (!url) return { ok: false, error: "Enter a URL." };
   let parsed: URL;

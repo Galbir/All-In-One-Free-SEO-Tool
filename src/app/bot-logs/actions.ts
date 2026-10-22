@@ -12,6 +12,7 @@ import {
   tally,
   type CrawlerVerification,
 } from "@/lib/crawler-verify";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Bot user-agent patterns we care about, in priority order. The first regex
@@ -113,6 +114,7 @@ export async function parseAndStoreLog(input: {
   sourceName?: string;
   clientId?: number | null;
 }): Promise<ParseResult> {
+  await guardAction("edit", input?.clientId);
   if (!input.text || input.text.length === 0) {
     return { ok: false, error: "Empty file" };
   }
@@ -218,6 +220,7 @@ export async function parseAndStoreLog(input: {
 }
 
 export async function listUploads(opts?: { limit?: number }) {
+  await guardAction("read");
   return db
     .select({
       id: botLogUploads.id,
@@ -237,6 +240,7 @@ export async function listUploads(opts?: { limit?: number }) {
 }
 
 export async function deleteUpload(id: number): Promise<void> {
+  await guardAction("edit");
   if (!Number.isFinite(id) || id <= 0) return;
   await db.delete(botLogUploads).where(eq(botLogUploads.id, id));
   revalidatePath("/bot-logs");

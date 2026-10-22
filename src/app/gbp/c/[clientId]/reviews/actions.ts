@@ -38,6 +38,7 @@ import {
 import { draftRepliesForQueue, type DraftBatchResult } from "@/lib/gbp-reply-drafter";
 import { appendResearchLog } from "@/lib/client-knowledge";
 import type { GbpReviewRow } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 export type ReviewDeskState = {
   counts: ReviewQueueCounts;
@@ -57,6 +58,7 @@ export async function loadReviewDesk(
   clientId: number,
   filter: QueueFilter = "unanswered",
 ): Promise<ReviewDeskState> {
+  await guardAction("read", clientId);
   const [client] = await db
     .select()
     .from(clients)
@@ -87,6 +89,7 @@ export type LocationChoices =
 export async function listLocationChoices(
   clientId: number,
 ): Promise<LocationChoices> {
+  await guardAction("read", clientId);
   const [client] = await db
     .select()
     .from(clients)
@@ -122,6 +125,7 @@ export async function chooseLocation(
   clientId: number,
   locationName: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit", clientId);
   if (!/^accounts\/[^/]+\/locations\/[^/]+$/.test(locationName)) {
     return { ok: false, error: "That is not a location name." };
   }
@@ -138,6 +142,7 @@ export type SyncResult =
   | { ok: false; error: string; scopeMissing?: boolean };
 
 export async function syncReviews(clientId: number): Promise<SyncResult> {
+  await guardAction("edit", clientId);
   const [client] = await db
     .select()
     .from(clients)
@@ -196,6 +201,7 @@ export async function draftNextReplies(opts: {
   limit?: number;
   redraft?: boolean;
 }): Promise<DraftBatchState> {
+  await guardAction("edit", opts?.clientId);
   const [client] = await db
     .select()
     .from(clients)
@@ -218,6 +224,7 @@ export async function saveDraft(opts: {
   reviewId: string;
   text: string;
 }): Promise<{ ok: boolean }> {
+  await guardAction("edit", opts?.clientId);
   await saveDraftReply({
     clientId: opts.clientId,
     reviewId: opts.reviewId,
@@ -232,6 +239,7 @@ export async function publishReply(opts: {
   reviewId: string;
   text: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit", opts?.clientId);
   const res = await sendReply(opts);
   refresh(opts.clientId);
   return res.ok ? { ok: true } : { ok: false, error: res.error };
@@ -246,6 +254,7 @@ export type PublishAllResult = {
 export async function publishAllDrafts(
   clientId: number,
 ): Promise<PublishAllResult> {
+  await guardAction("edit", clientId);
   const out = await sendAllDrafts({ clientId });
   if (out.sent > 0) {
     await appendResearchLog(

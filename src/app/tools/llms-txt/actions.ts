@@ -16,6 +16,7 @@ import type { AiFailure } from "@/lib/ai-error";
 import { saveToolRun } from "@/lib/tool-runs";
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type GenerateLlmsResult =
   | { ok: true; content: string; aiFailure?: AiFailure | null }
@@ -59,6 +60,7 @@ export async function generateLlmsTxt(opts: {
   url: string;
   hint?: string;
 }): Promise<GenerateLlmsResult> {
+  await guardAction("edit");
   if (!opts.url?.trim()) return { ok: false, error: "URL is required" };
 
   const meta = await fetchSiteMetadata(opts.url).catch(() => null);
@@ -116,6 +118,7 @@ export async function generateLlmsTxt(opts: {
 export async function validateLlmsTxt(
   rawUrl: string,
 ): Promise<ValidateLlmsResult> {
+  await guardAction("edit");
   if (!rawUrl?.trim()) return { ok: false, error: "URL is required" };
   const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   let origin: string;

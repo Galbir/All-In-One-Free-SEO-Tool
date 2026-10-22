@@ -1,6 +1,7 @@
 "use server";
 
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type RedditPost = {
   title: string;
@@ -38,6 +39,7 @@ export async function searchReddit(opts: {
   sort?: "relevance" | "new" | "top" | "comments";
   time?: "all" | "year" | "month" | "week";
 }): Promise<RedditResearchResult> {
+  await guardAction("read");
   if (!opts.query.trim()) return { ok: false, error: "Query required" };
 
   const sort = opts.sort ?? "relevance";

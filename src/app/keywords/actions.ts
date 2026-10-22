@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { keywords } from "@/db/schema";
 import { researchKeywords } from "@/lib/keyword-research";
 import { normaliseCountry } from "@/lib/countries";
+import { guardAction } from "@/lib/action-guard";
 
 export type ResearchActionResult =
   | {
@@ -30,6 +31,7 @@ export async function researchAction(
   _prev: ResearchActionResult | null,
   formData: FormData,
 ): Promise<ResearchActionResult> {
+  await guardAction("edit", formData.get("clientId"));
   const seed = String(formData.get("seed") ?? "").trim();
   // normaliseCountry maps the "UK" the old form used onto GB, and
   // refuses anything a search engine would not accept.
@@ -67,6 +69,7 @@ export async function researchAction(
 }
 
 export async function trackKeyword(formData: FormData) {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const query = String(formData.get("query") ?? "").trim();
   const country = String(formData.get("country") ?? "US")
@@ -103,6 +106,7 @@ export async function trackKeyword(formData: FormData) {
 }
 
 export async function untrackKeyword(keywordId: number) {
+  await guardAction("edit");
   if (!Number.isFinite(keywordId) || keywordId <= 0) return;
   await db.delete(keywords).where(eq(keywords.id, keywordId));
   revalidatePath("/keywords");

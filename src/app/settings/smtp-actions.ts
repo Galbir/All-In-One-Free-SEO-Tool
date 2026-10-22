@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { setSetting, deleteSetting } from "@/lib/settings-store";
 import { sendMail, verifySmtp } from "@/lib/mailer";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   host: z.string().trim().min(1, "Host is required"),
@@ -28,6 +29,7 @@ export async function saveSmtpConfig(
   _prev: SaveSmtpResult | null,
   formData: FormData,
 ): Promise<SaveSmtpResult> {
+  await guardAction("settings", formData.get("clientId"));
   const parsed = schema.safeParse({
     host: formData.get("host"),
     port: formData.get("port"),
@@ -70,12 +72,14 @@ export async function testSmtpConnection(): Promise<{
   ok: boolean;
   error?: string;
 }> {
+  await guardAction("settings");
   return verifySmtp();
 }
 
 export async function sendTestEmail(
   to: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("settings");
   const r = await sendMail({
     to: [to],
     subject: "SEO Tool — SMTP test",
@@ -86,6 +90,7 @@ export async function sendTestEmail(
 }
 
 export async function clearSmtpConfig() {
+  await guardAction("settings");
   await Promise.all([
     deleteSetting("smtp.host"),
     deleteSetting("smtp.port"),

@@ -6,6 +6,7 @@ import {
   type TrendingResult,
 } from "@/lib/trending-ideas";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   topic: z.string().trim().min(2).max(120),
@@ -20,6 +21,7 @@ export async function runTrending(
   _prev: TrendingState | null,
   formData: FormData,
 ): Promise<TrendingState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     topic: formData.get("topic"),
     country: formData.get("country") || "US",

@@ -3,6 +3,7 @@
 import { saveSnapshot } from "@/lib/snapshots";
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { guardUrl } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type HeaderHop = {
   url: string;
@@ -21,6 +22,7 @@ const MAX_HOPS = 12;
 export async function inspectHeaders(
   rawUrl: string,
 ): Promise<HeadersResult> {
+  await guardAction("edit");
   if (!rawUrl?.trim()) return { ok: false, error: "URL required" };
   const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 
@@ -120,6 +122,7 @@ export async function saveHeadersSnapshot(opts: {
   clientId?: number | null;
   note?: string;
 }): Promise<{ ok: true; id: number }> {
+  await guardAction("edit", opts?.clientId);
   const totalHops =
     opts.data.ok && opts.data.chain ? opts.data.chain.length : 0;
   return saveSnapshot({

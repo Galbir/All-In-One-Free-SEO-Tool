@@ -9,6 +9,7 @@ import {
   type MigrationMap,
 } from "@/lib/migration-mapper";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type MigrationState =
   | {
@@ -39,6 +40,7 @@ export async function importToRedirectRules(
   _prev: ImportState | null,
   formData: FormData,
 ): Promise<ImportState> {
+  await guardAction("edit", formData.get("clientId"));
   const oldRaw = String(formData.get("oldUrls") ?? "");
   const newRaw = String(formData.get("newUrls") ?? "");
   const olds = splitList(oldRaw);
@@ -84,6 +86,7 @@ export async function runMapping(
   _prev: MigrationState | null,
   formData: FormData,
 ): Promise<MigrationState> {
+  await guardAction("edit", formData.get("clientId"));
   const oldRaw = String(formData.get("oldUrls") ?? "");
   const newRaw = String(formData.get("newUrls") ?? "");
   const olds = splitList(oldRaw);

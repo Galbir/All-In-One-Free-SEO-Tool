@@ -3,6 +3,7 @@
 import { traceMany, type RedirectChain } from "@/lib/redirect-tracer";
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { clientIdFrom } from "@/lib/client-id-field";
+import { guardAction } from "@/lib/action-guard";
 
 export type BulkState =
   | { ok: true; chains: RedirectChain[] }
@@ -84,6 +85,7 @@ export async function runBulk(
   _prev: BulkState | null,
   formData: FormData,
 ): Promise<BulkState> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = String(formData.get("urls") ?? "").trim();
   if (!raw) return { ok: false, error: "Paste at least one URL." };
 

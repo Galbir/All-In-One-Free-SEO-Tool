@@ -3,6 +3,7 @@
 import { auditParity, type ParityReport } from "@/lib/migration-parity";
 import { recordToolRun } from "@/lib/tool-findings";
 import { parityFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 export type ParityState =
   | { ok: true; report: ParityReport }
@@ -12,6 +13,7 @@ export async function runParity(
   _prev: ParityState | null,
   formData: FormData,
 ): Promise<ParityState> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = String(formData.get("oldUrls") ?? "").trim();
   const newDomain = String(formData.get("newDomain") ?? "").trim() || undefined;
   if (!raw) return { ok: false, error: "Paste old URLs (one per line)." };

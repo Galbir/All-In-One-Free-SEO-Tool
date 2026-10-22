@@ -6,6 +6,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, localGridChecks } from "@/db/schema";
 import { runLocalGrid, type GridResult } from "@/lib/local-grid";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -24,6 +25,7 @@ export async function runGrid(
   _prev: GridState | null,
   formData: FormData,
 ): Promise<GridState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     clientId: formData.get("clientId"),
     query: formData.get("query"),
@@ -76,6 +78,7 @@ export async function runGrid(
 }
 
 export async function getRecentGrids(clientId: number) {
+  await guardAction("read", clientId);
   return db
     .select()
     .from(localGridChecks)
@@ -102,6 +105,7 @@ export async function createGridSchedule(
   _prev: CreateScheduleResult | null,
   formData: FormData,
 ): Promise<CreateScheduleResult> {
+  await guardAction("edit", formData.get("clientId"));
   const { localGridSchedules } = await import("@/db/schema");
   const parsed = scheduleSchema.safeParse({
     clientId: formData.get("clientId"),
@@ -133,6 +137,7 @@ export async function createGridSchedule(
 }
 
 export async function toggleGridSchedule(id: number): Promise<void> {
+  await guardAction("edit");
   const { localGridSchedules } = await import("@/db/schema");
   const [s] = await db
     .select({
@@ -151,6 +156,7 @@ export async function toggleGridSchedule(id: number): Promise<void> {
 }
 
 export async function deleteGridSchedule(id: number): Promise<void> {
+  await guardAction("edit");
   const { localGridSchedules } = await import("@/db/schema");
   const [s] = await db
     .select({ clientId: localGridSchedules.clientId })
@@ -163,6 +169,7 @@ export async function deleteGridSchedule(id: number): Promise<void> {
 }
 
 export async function listGridSchedules(clientId: number) {
+  await guardAction("read", clientId);
   const { localGridSchedules } = await import("@/db/schema");
   return db
     .select()

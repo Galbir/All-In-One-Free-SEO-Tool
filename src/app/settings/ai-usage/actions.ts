@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { setSetting, deleteSetting } from "@/lib/settings-store";
+import { guardAction } from "@/lib/action-guard";
 
 export type SaveCapState =
   | { ok: true; message: string }
@@ -11,6 +12,7 @@ export async function saveCap(
   _prev: SaveCapState | null,
   formData: FormData,
 ): Promise<SaveCapState> {
+  await guardAction("settings", formData.get("clientId"));
   const raw = String(formData.get("cap") ?? "").trim();
   if (raw === "") {
     await deleteSetting("ai.monthly_cap_usd");

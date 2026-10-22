@@ -9,8 +9,10 @@ import {
   runAgentActions,
   type AgentRunReport,
 } from "@/lib/seo-agent-runner";
+import { guardAction } from "@/lib/action-guard";
 
 export async function runAgent(clientId: number): Promise<AgentRunResult> {
+  await guardAction("edit", clientId);
   const result = await runSeoAgent(clientId);
   safeRevalidatePath(`/agent/c/${clientId}`);
   return result;
@@ -19,6 +21,7 @@ export async function runAgent(clientId: number): Promise<AgentRunResult> {
 export async function runAgentExecute(
   clientId: number,
 ): Promise<AgentRunReport> {
+  await guardAction("edit", clientId);
   const report = await runAgentActions(clientId);
   safeRevalidatePath(`/agent/c/${clientId}`);
   safeRevalidatePath(`/clients/${clientId}`);
@@ -27,6 +30,7 @@ export async function runAgentExecute(
 }
 
 export async function applySuggestion(suggestionId: number) {
+  await guardAction("edit");
   const [s] = await db
     .select()
     .from(aiSuggestions)
@@ -43,6 +47,7 @@ export async function applySuggestion(suggestionId: number) {
 }
 
 export async function dismissSuggestion(suggestionId: number) {
+  await guardAction("edit");
   const [s] = await db
     .select()
     .from(aiSuggestions)
@@ -59,6 +64,7 @@ export async function dismissSuggestion(suggestionId: number) {
 }
 
 export async function reopenSuggestion(suggestionId: number) {
+  await guardAction("edit");
   const [s] = await db
     .select()
     .from(aiSuggestions)
@@ -79,6 +85,7 @@ export async function reopenSuggestion(suggestionId: number) {
  * when the user wants to track applying it as work-in-progress.
  */
 export async function suggestionToTask(suggestionId: number) {
+  await guardAction("edit");
   const [s] = await db
     .select()
     .from(aiSuggestions)

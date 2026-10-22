@@ -1,6 +1,7 @@
 "use server";
 
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const TOXIC_TLDS = [".tk", ".ml", ".ga", ".cf", ".cn", ".ru", ".buzz", ".loan", ".xyz"];
 const TOXIC_PATTERNS = [
@@ -50,6 +51,7 @@ export async function runDisavow(
   _prev: DisavowState | null,
   formData: FormData,
 ): Promise<DisavowState> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = String(formData.get("backlinks") ?? "").trim();
   const mode = String(formData.get("mode") ?? "auto");
   if (!raw) return { ok: false, error: "Paste at least one backlink (URL or domain per line)." };

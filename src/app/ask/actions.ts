@@ -10,6 +10,7 @@ import {
   tasks,
 } from "@/db/schema";
 import { callAI } from "@/lib/ai-call";
+import { guardAction } from "@/lib/action-guard";
 
 export type AskResult =
   | {
@@ -111,6 +112,7 @@ export async function askTheTool(input: {
   modelChoice?: { provider?: string; model?: string };
   conversationId?: number | null;
 }): Promise<AskResult> {
+  await guardAction("edit", input?.clientId);
   const question = input.question.trim();
   if (!question) {
     return { ok: false, error: "Type a question first." };

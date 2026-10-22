@@ -3,6 +3,7 @@
 import { auditYouTube, type YouTubeAuditResult } from "@/lib/youtube-audit";
 import { recordToolRun } from "@/lib/tool-findings";
 import { youtubeAuditFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 export type YtAuditState =
   | { ok: true; result: YouTubeAuditResult }
@@ -12,6 +13,7 @@ export async function runYtAudit(
   _prev: YtAuditState | null,
   formData: FormData,
 ): Promise<YtAuditState> {
+  await guardAction("edit", formData.get("clientId"));
   const url = String(formData.get("url") ?? "").trim();
   const targetKeyword =
     String(formData.get("targetKeyword") ?? "").trim() || undefined;

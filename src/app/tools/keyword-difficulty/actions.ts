@@ -3,6 +3,7 @@
 import { scanSerp } from "@/lib/serp-scanner";
 import { callAI } from "@/lib/ai-call";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type DifficultyResult = {
   ok: true;
@@ -131,6 +132,7 @@ function band(d: number): DifficultyResult["difficulty_band"] {
 export async function estimateDifficulty(
   rawQuery: string,
 ): Promise<DifficultyApiResult> {
+  await guardAction("edit");
   const query = rawQuery.trim();
   if (!query) return { ok: false, error: "Enter a keyword" };
 

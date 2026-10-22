@@ -8,6 +8,7 @@ import {
 } from "@/lib/meta-rewrite-batch";
 import { pushWpFix } from "@/app/clients/[id]/wp-actions";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 const findSchema = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -21,6 +22,7 @@ export async function findCandidates(
   _prev: FindState | null,
   formData: FormData,
 ): Promise<FindState> {
+  await guardAction("read", formData.get("clientId"));
   const parsed = findSchema.safeParse({
     clientId: formData.get("clientId"),
   });
@@ -58,6 +60,7 @@ export async function applyRewrite(
   _prev: ApplyState | null,
   formData: FormData,
 ): Promise<ApplyState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = applySchema.safeParse({
     clientId: formData.get("clientId"),
     url: formData.get("url"),

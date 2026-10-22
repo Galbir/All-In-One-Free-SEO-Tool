@@ -1,7 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "@/lib/secure-compare";
-import { expectedToken } from "@/middleware";
-import { accountsEnabled, authenticate, issueSession } from "@/lib/auth";
+import { expectedToken } from "@/lib/password-token";
+import {
+  accountsEnabled,
+  authenticate,
+  isHttps,
+  issueSession,
+  normaliseEmail,
+} from "@/lib/auth";
+import { checkRateLimit, clientKey } from "@/lib/rate-limit";
+
+/**
+ * Attempts allowed per window, per caller and per account. There was no
+ * limit at all: the 250ms delay on a wrong password is per request, so
+ * parallel requests sprayed passwords at full speed.
+ */
+const LOGIN_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60_000;
+
+function tooMany(resetAt: number) {
+  const mins = Math.max(1, Math.ceil((resetAt - Date.now()) / 60_000));
+  return NextResponse.json(
+    {
+      error: `Too many sign-in attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`,
+    },
+    { status: 429, headers: { "retry-after": String(mins * 60) } },
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +47,12 @@ export async function POST(req: NextRequest) {
     | null;
   const submitted = body?.password ?? "";
 
+  const byCaller = checkRateLimit(`login:${clientKey(req)}`, {
+    max: LOGIN_ATTEMPTS,
+    windowMs: LOGIN_WINDOW_MS,
+  });
+  if (!byCaller.allowed) return tooMany(byCaller.resetAt);
+
   if (accountsEnabled()) {
     const email = body?.email ?? "";
     if (!email) {
@@ -30,6 +61,14 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    // Per account too: without a trusted proxy every caller shares one
+    // key above, and spraying one account from many addresses is the
+    // attack this is for.
+    const byAccount = checkRateLimit(`login:email:${normaliseEmail(email)}`, {
+      max: LOGIN_ATTEMPTS,
+      windowMs: LOGIN_WINDOW_MS,
+    });
+    if (!byAccount.allowed) return tooMany(byAccount.resetAt);
     const result = await authenticate(email, submitted);
     if (!result.ok) {
       // Same jitter as below — a fast "no such user" next to a slow
@@ -73,7 +112,9 @@ export async function POST(req: NextRequest) {
     value: token,
     httpOnly: true,
     sameSite: "lax",
-    secure: req.nextUrl.protocol === "https:",
+    // Behind a TLS-terminating proxy the request itself is plain http, so
+    // honour x-forwarded-proto the way the accounts-mode cookie does.
+    secure: req.nextUrl.protocol === "https:" || (await isHttps()),
     path: "/",
     maxAge: 60 * 60 * 24 * 30, // 30 days
   });

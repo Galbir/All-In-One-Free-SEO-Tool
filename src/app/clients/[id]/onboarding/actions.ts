@@ -20,6 +20,7 @@ import { withoutInfrastructure } from "@/lib/infrastructure-urls";
 import { getGscQuickWins } from "@/lib/google-data";
 import { logActivity } from "@/lib/activity";
 import { ymd } from "@/lib/utils-date";
+import { guardAction } from "@/lib/action-guard";
 
 const brandSchema = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -39,6 +40,7 @@ export async function saveBrandStep(
   _prev: SaveBrandResult | null,
   formData: FormData,
 ): Promise<SaveBrandResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = brandSchema.safeParse({
     clientId: formData.get("clientId"),
     description: formData.get("description") ?? undefined,
@@ -83,6 +85,7 @@ export async function saveTargetingStep(
   _prev: SaveBrandResult | null,
   formData: FormData,
 ): Promise<SaveBrandResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = targetingSchema.safeParse({
     clientId: formData.get("clientId"),
     country: formData.get("country"),
@@ -129,6 +132,7 @@ export async function saveSurfacesStep(
   _prev: SaveBrandResult | null,
   formData: FormData,
 ): Promise<SaveBrandResult> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   if (!Number.isFinite(clientId) || clientId <= 0)
     return { ok: false, error: "Invalid client." };
@@ -169,6 +173,7 @@ export async function runKeywordDiscovery(
   _prev: DiscoverState | null,
   formData: FormData,
 ): Promise<DiscoverState> {
+  await guardAction("edit", formData.get("clientId"));
   const id = Number(formData.get("clientId"));
   if (!Number.isFinite(id) || id <= 0)
     return { ok: false, error: "Invalid client" };
@@ -236,6 +241,7 @@ export async function acceptDiscoveredKeywords(
   _prev: SaveBrandResult | null,
   formData: FormData,
 ): Promise<SaveBrandResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = acceptKeywordsSchema.safeParse({
     clientId: formData.get("clientId"),
     selected: formData.get("selected"),
@@ -307,6 +313,7 @@ export type GenerateCalendarResult =
 export async function generateMonthlyCalendar(
   clientId: number,
 ): Promise<GenerateCalendarResult> {
+  await guardAction("edit", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0)
     return { ok: false, error: "Invalid client" };
 
@@ -486,6 +493,7 @@ export async function generateMonthlyCalendar(
 }
 
 export async function skipOnboarding(clientId: number): Promise<void> {
+  await guardAction("edit", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0) return;
   await db
     .update(clients)
@@ -503,6 +511,7 @@ export async function skipOnboarding(clientId: number): Promise<void> {
 export async function getLearnedRulesForClient(
   clientId: number,
 ): Promise<{ rule: string; confidence: string; feature: string }[]> {
+  await guardAction("read", clientId);
   const { aiPreferences } = await import("@/db/schema");
   const { and, isNull, or, eq: drizzleEq, desc: drizzleDesc } = await import("drizzle-orm");
   // Scoped to workspace-wide rules (client_id IS NULL) plus this
@@ -555,6 +564,7 @@ export type AuditProgress = {
 export async function getAuditProgress(
   clientId: number,
 ): Promise<AuditProgress> {
+  await guardAction("read", clientId);
   const [row] = await db
     .select({
       id: audits.id,

@@ -5,6 +5,7 @@ import { callAI, lastAiFailure } from "@/lib/ai-call";
 import { recordToolRun } from "@/lib/tool-findings";
 import { aiOverviewFindings } from "@/lib/tool-finding-builders";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type AiOverviewAnalysis =
   | {
@@ -82,6 +83,7 @@ async function fetchPageContent(
 export async function analyzeAiOverview(
   rawUrl: string,
 ): Promise<AiOverviewAnalysis> {
+  await guardAction("edit");
   if (!rawUrl?.trim()) return { ok: false, error: "URL required" };
   const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 

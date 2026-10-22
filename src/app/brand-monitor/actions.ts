@@ -5,12 +5,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { brandMentions, clients } from "@/db/schema";
 import { monitorBrand } from "@/lib/brand-monitor";
+import { guardAction } from "@/lib/action-guard";
 
 export type RunResult =
   | { ok: true; added: number; total: number; errors: string[] }
   | { ok: false; error: string };
 
 export async function runBrandMonitor(clientId: number): Promise<RunResult> {
+  await guardAction("edit", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0)
     return { ok: false, error: "Invalid client" };
 
@@ -44,6 +46,7 @@ export async function runBrandMonitor(clientId: number): Promise<RunResult> {
 }
 
 export async function deleteMention(id: number): Promise<void> {
+  await guardAction("edit");
   if (!Number.isFinite(id) || id <= 0) return;
   await db.delete(brandMentions).where(eq(brandMentions.id, id));
   revalidatePath("/brand-monitor");
@@ -61,6 +64,7 @@ export async function mentionToOutreach(opts: {
   authorName: string | null;
   url: string;
 }): Promise<{ ok: boolean; contactId?: number; error?: string }> {
+  await guardAction("edit", opts?.clientId);
   const { outreachContacts } = await import("@/db/schema");
   const { logActivity } = await import("@/lib/activity");
 

@@ -23,6 +23,7 @@ import {
 } from "@/lib/agent/autonomy";
 import { revertAction } from "@/lib/agent/executor";
 import { runAgentForAllClients, runAgentForClient } from "@/lib/agent/run";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Every mutating action here re-checks that the caller may see the
@@ -54,6 +55,7 @@ async function assertMayTouch(
 export async function saveAgentSettings(
   patch: Partial<AgentSettings>,
 ): Promise<AgentSettings> {
+  await guardAction("edit");
   // Autonomy is a workspace-wide setting that decides whether anything
   // writes to live sites, so it is owner-or-solo territory.
   const me = await currentUser();
@@ -66,6 +68,7 @@ export async function saveAgentSettings(
 }
 
 export async function setLevel(level: AutonomyLevel): Promise<AgentSettings> {
+  await guardAction("edit");
   return saveAgentSettings({ level });
 }
 
@@ -79,6 +82,7 @@ export type RunNowResult = {
 };
 
 export async function runNow(clientId?: number): Promise<RunNowResult> {
+  await guardAction("edit", clientId);
   const settings = await getAgentSettings();
   if (settings.level === "off") {
     return {
@@ -152,6 +156,7 @@ export async function runNow(clientId?: number): Promise<RunNowResult> {
 export async function approveAction(
   actionId: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const guard = await assertMayTouch(actionId);
   if (!guard.ok) return guard;
   const action = guard.action;
@@ -196,6 +201,7 @@ export async function approveAction(
 export async function rejectAction(
   actionId: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const guard = await assertMayTouch(actionId);
   if (!guard.ok) return guard;
 
@@ -210,6 +216,7 @@ export async function rejectAction(
 export async function undoAction(
   actionId: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const guard = await assertMayTouch(actionId);
   if (!guard.ok) return guard;
 
@@ -227,6 +234,7 @@ export async function undoAction(
 export async function undoRun(
   runId: number,
 ): Promise<{ ok: boolean; undone: number; failed: number; error?: string }> {
+  await guardAction("edit");
   const rows = await db
     .select({ id: agentActions.id, clientId: agentActions.clientId })
     .from(agentActions)
@@ -275,6 +283,7 @@ export async function approveAllOfKind(opts: {
   kind: string;
   includeNeedsReview?: boolean;
 }): Promise<import("@/lib/agent/bulk").BulkResult> {
+  await guardAction("edit", opts?.clientId);
   const { applyBulk } = await import("@/lib/agent/bulk");
   const result = await applyBulk({
     clientId: opts.clientId,
@@ -291,6 +300,7 @@ export async function approveAllOfKind(opts: {
 export async function waitingByKind(
   clientId: number,
 ): Promise<import("@/lib/agent/bulk").BulkGroup[]> {
+  await guardAction("edit", clientId);
   const { groupForBulk } = await import("@/lib/agent/bulk");
   const rows = await db
     .select({

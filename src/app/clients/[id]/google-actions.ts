@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema";
 import { listGscProperties, listGa4Properties } from "@/lib/google-oauth";
+import { guardAction } from "@/lib/action-guard";
 
 export type FetchPropertiesResult =
   | {
@@ -15,6 +16,7 @@ export type FetchPropertiesResult =
   | { ok: false; error: string };
 
 export async function fetchGoogleProperties(): Promise<FetchPropertiesResult> {
+  await guardAction("read");
   try {
     const [gsc, ga4] = await Promise.all([
       listGscProperties().catch(() => []),
@@ -42,6 +44,7 @@ export async function saveGoogleProperties(opts: {
   gscProperty: string | null;
   ga4PropertyId: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  await guardAction("edit", opts?.clientId);
   if (!Number.isFinite(opts.clientId) || opts.clientId < 1) {
     return { ok: false, error: "Invalid client" };
   }

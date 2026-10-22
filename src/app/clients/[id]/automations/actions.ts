@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, dailySchedules, type NewDailySchedule } from "@/db/schema";
 import { isGbpLocationName } from "@/lib/gbp-api";
+import { guardAction } from "@/lib/action-guard";
 
 export type CreateScheduleState =
   | { ok: true; id: number }
@@ -15,6 +16,7 @@ export async function createSchedule(
   _prev: CreateScheduleState,
   formData: FormData,
 ): Promise<CreateScheduleState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const kind = String(formData.get("kind") ?? "");
   const cadenceDays = Math.max(1, Math.min(90, Number(formData.get("cadenceDays") ?? 1)));
@@ -105,6 +107,7 @@ export async function toggleScheduleEnabled(
   scheduleId: number,
   clientId: number,
 ): Promise<void> {
+  await guardAction("edit", clientId);
   const [s] = await db
     .select()
     .from(dailySchedules)
@@ -127,6 +130,7 @@ export async function deleteSchedule(
   scheduleId: number,
   clientId: number,
 ): Promise<void> {
+  await guardAction("edit", clientId);
   await db
     .delete(dailySchedules)
     .where(
@@ -146,6 +150,7 @@ export async function runScheduleNow(
   scheduleId: number,
   clientId: number,
 ): Promise<{ ok: boolean; message: string }> {
+  await guardAction("edit", clientId);
   const [s] = await db
     .select()
     .from(dailySchedules)

@@ -6,6 +6,7 @@ import { recordToolRun } from "@/lib/tool-findings";
 import { clientIdFrom } from "@/lib/client-id-field";
 import { type ToolFinding } from "@/db/schema";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type SxoAudit = {
   url: string;
@@ -163,6 +164,7 @@ export async function runSxoAudit(
   _prev: SxoState,
   formData: FormData,
 ): Promise<SxoState> {
+  await guardAction("edit", formData.get("clientId"));
   const urlRaw = String(formData.get("url") ?? "").trim();
   if (!urlRaw) return { ok: false, error: "URL required." };
   let url: string;

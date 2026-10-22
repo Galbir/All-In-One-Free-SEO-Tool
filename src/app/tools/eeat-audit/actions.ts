@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auditEeat, type EeatResult } from "@/lib/eeat-audit";
 import { recordToolRun } from "@/lib/tool-findings";
 import { eeatFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   url: z
@@ -22,6 +23,7 @@ export async function runEeatAudit(
   _prev: EeatState | null,
   formData: FormData,
 ): Promise<EeatState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({ url: formData.get("url") });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid URL" };

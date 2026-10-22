@@ -8,6 +8,7 @@ import {
   crawlSite,
 } from "@/lib/sitemap-generator";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   url: z
@@ -39,6 +40,7 @@ export async function generateSitemap(
   _prev: SitemapResult | null,
   formData: FormData,
 ): Promise<SitemapResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     url: formData.get("url"),
     maxPages: formData.get("maxPages"),

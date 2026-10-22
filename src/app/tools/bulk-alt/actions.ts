@@ -6,6 +6,7 @@ import {
   type AltSuggestion,
 } from "@/lib/content-ai-helpers";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type AltState =
   | { ok: true; pageContext: string; suggestions: AltSuggestion[] }
@@ -15,6 +16,7 @@ export async function runBulkAlt(
   _prev: AltState | null,
   formData: FormData,
 ): Promise<AltState> {
+  await guardAction("edit", formData.get("clientId"));
   const url = String(formData.get("url") ?? "").trim();
   if (!url) return { ok: false, error: "URL required." };
   const fullUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;

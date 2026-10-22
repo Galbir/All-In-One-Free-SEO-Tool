@@ -8,6 +8,7 @@ import { clients, monitoredPages, pageChanges } from "@/db/schema";
 import { diffSnapshots, fetchSnapshot } from "@/lib/page-monitor";
 import { notify } from "@/lib/notifier";
 import { runAutomations } from "@/lib/automation-engine";
+import { guardAction } from "@/lib/action-guard";
 
 const addSchema = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -33,6 +34,7 @@ export async function addMonitoredPage(
   _prev: AddMonitorResult | null,
   formData: FormData,
 ): Promise<AddMonitorResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = addSchema.safeParse({
     clientId: formData.get("clientId"),
     url: formData.get("url"),
@@ -62,6 +64,7 @@ export async function addMonitoredPage(
 }
 
 export async function deleteMonitoredPage(monitoredPageId: number) {
+  await guardAction("edit");
   await db
     .delete(monitoredPages)
     .where(eq(monitoredPages.id, monitoredPageId));
@@ -72,6 +75,7 @@ export async function setMonitorStatus(
   monitoredPageId: number,
   status: "active" | "paused",
 ) {
+  await guardAction("edit");
   await db
     .update(monitoredPages)
     .set({ status, updatedAt: new Date() })
@@ -213,10 +217,12 @@ async function checkPageChangesInternal(
 }
 
 export async function checkPageChanges(monitoredPageId: number) {
+  await guardAction("edit");
   await checkPageChangesInternal(monitoredPageId);
 }
 
 export async function checkAllMonitoredPages() {
+  await guardAction("edit");
   const pages = await db
     .select({ id: monitoredPages.id })
     .from(monitoredPages)

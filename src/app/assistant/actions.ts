@@ -15,6 +15,7 @@ import {
   monitoredPages,
   tasks,
 } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -284,6 +285,7 @@ async function callOllama(
 }
 
 export async function chat(history: ChatMessage[]): Promise<ChatResult> {
+  await guardAction("edit");
   if (history.length === 0 || history[history.length - 1].role !== "user") {
     return { ok: false, error: "No user message to respond to." };
   }

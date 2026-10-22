@@ -6,6 +6,7 @@ import {
   type LinkAnalysis,
 } from "@/lib/internal-link-graph";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   startUrl: z
@@ -25,6 +26,7 @@ export async function runLinkGraph(
   _prev: LinkGraphState | null,
   formData: FormData,
 ): Promise<LinkGraphState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     startUrl: formData.get("startUrl"),
     maxPages: formData.get("maxPages") || undefined,

@@ -2,6 +2,7 @@
 
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { guardedFetch, SsrfBlockedError } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type RobotsResult =
   | {
@@ -89,6 +90,7 @@ export async function checkRobots(
    */
   allowPrivate = false,
 ): Promise<RobotsResult> {
+  await guardAction("edit", clientId);
   if (!rawUrl?.trim()) return { ok: false, error: "URL is required" };
   const url = normalize(rawUrl.trim());
 

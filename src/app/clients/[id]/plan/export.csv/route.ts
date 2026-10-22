@@ -2,6 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, tasks } from "@/db/schema";
 import { groupPlanByWeek } from "@/lib/plan-view";
+import { canAccessClient } from "@/lib/client-scope";
 
 /**
  * The plan as a file, because "download it on the same page" is what
@@ -18,7 +19,7 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
   const clientId = Number.parseInt(id, 10);
-  if (!Number.isInteger(clientId)) {
+  if (!Number.isInteger(clientId) || !(await canAccessClient(clientId))) {
     return new Response("Not found", { status: 404 });
   }
 

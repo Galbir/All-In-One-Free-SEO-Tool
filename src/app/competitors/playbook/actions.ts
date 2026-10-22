@@ -5,6 +5,7 @@ import {
   reverseEngineerCompetitor,
   type CompetitorPlaybook,
 } from "@/lib/competitor-playbook";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   competitorUrl: z
@@ -36,6 +37,7 @@ export async function runCompetitorAnalysis(
   _prev: PlaybookState | null,
   formData: FormData,
 ): Promise<PlaybookState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     competitorUrl: formData.get("competitorUrl"),
     myUrl: formData.get("myUrl") ?? undefined,
@@ -66,6 +68,7 @@ export async function playbookToTasks(opts: {
   competitorUrl: string;
   synthesis: string;
 }): Promise<{ ok: boolean; created: number; error?: string }> {
+  await guardAction("edit", opts?.clientId);
   if (!opts.synthesis?.trim())
     return { ok: false, created: 0, error: "Empty synthesis" };
   if (!Number.isFinite(opts.clientId) || opts.clientId <= 0)

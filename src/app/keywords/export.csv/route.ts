@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq, desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, keywords, keywordRankings } from "@/db/schema";
+import { exportScope } from "@/lib/client-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,8 @@ function csvEscape(value: string | number | null | undefined): string {
   return s;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const scope = await exportScope(keywords.clientId, req);
   const rows = await db
     .select({
       id: keywords.id,
@@ -25,6 +27,7 @@ export async function GET() {
     })
     .from(keywords)
     .leftJoin(clients, eq(keywords.clientId, clients.id))
+    .where(scope)
     .orderBy(desc(keywords.createdAt));
 
   // Pull latest position per keyword

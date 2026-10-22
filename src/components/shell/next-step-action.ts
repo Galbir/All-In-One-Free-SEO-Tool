@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Persist the user's choice to hide a NextStep suggestion. The cookie
@@ -10,6 +11,7 @@ import { revalidatePath } from "next/cache";
  * is migrated/restored from backup and the priorities shift.
  */
 export async function dismissNextStep(stepId: string): Promise<void> {
+  await guardAction("personal");
   const safe = stepId.replace(/[^a-z0-9-_]/gi, "").slice(0, 64);
   if (!safe) return;
   const store = await cookies();

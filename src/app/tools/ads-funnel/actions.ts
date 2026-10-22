@@ -19,6 +19,7 @@ import {
   retrieveKnowledge,
   renderKnowledgeContext,
 } from "@/lib/seo-knowledge-base";
+import { guardAction } from "@/lib/action-guard";
 
 export type AdsFunnelGoal =
   | "awareness"
@@ -102,6 +103,7 @@ export async function generateAdsFunnel(
   _prev: AdsFunnelState | null,
   formData: FormData,
 ): Promise<AdsFunnelState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientIdRaw = formData.get("clientId");
   const clientId = clientIdRaw ? Number(clientIdRaw) : null;
   const platformIdsRaw = formData.getAll("platforms") as string[];

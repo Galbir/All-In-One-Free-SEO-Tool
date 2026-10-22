@@ -12,6 +12,7 @@ import {
 } from "@/lib/report-batch";
 import { sendReportEmail } from "@/lib/report-mailer";
 import type { ReportTemplate } from "@/lib/report-generator";
+import { guardAction } from "@/lib/action-guard";
 
 export async function startBatch(input: {
   clientIds: number[];
@@ -19,6 +20,7 @@ export async function startBatch(input: {
   periodStart?: string;
   periodEnd?: string;
 }): Promise<{ ok: true; batchId: number } | { ok: false; error: string }> {
+  await guardAction("edit");
   // Only generate for clients the caller can see. Otherwise a member
   // presses "generate all" and produces reports for the rest of the
   // agency's book — including PDFs full of data they were never given
@@ -40,6 +42,7 @@ export async function startBatch(input: {
 }
 
 export async function pollBatch(batchId: number): Promise<BatchProgress | null> {
+  await guardAction("edit");
   return getBatchProgress(batchId);
 }
 
@@ -66,6 +69,7 @@ async function guard(
 export async function approveReport(
   reportId: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const g = await guard(reportId);
   if (!g.ok) return g;
   if (g.report.status === "failed") {
@@ -86,6 +90,7 @@ export async function approveReport(
 export async function rejectReport(
   reportId: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const g = await guard(reportId);
   if (!g.ok) return g;
   await db
@@ -107,6 +112,7 @@ export async function rejectReport(
 export async function sendReport(
   reportId: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const g = await guard(reportId);
   if (!g.ok) return g;
 

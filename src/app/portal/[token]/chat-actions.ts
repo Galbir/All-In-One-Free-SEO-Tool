@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { callAI } from "@/lib/ai-call";
 import { isOpenTask } from "@/lib/task-status";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export type PortalChatMessage = {
   role: "user" | "assistant";
@@ -37,6 +38,21 @@ Hard rules:
 - If the data doesn't answer the question, say so plainly: "I don't see that in your portal yet — your account manager can help."`;
 
 const MAX_CONTEXT_CHARS = 6_000;
+
+/**
+ * Bounds on what a portal visitor can spend.
+ *
+ * The portal link is emailed to a client and gets forwarded; anyone
+ * holding it could send unlimited questions, each a paid AI call on the
+ * agency's key, with an unbounded history pasted into every prompt. The
+ * per-link and global limits cap the bill; the history caps keep any one
+ * call small.
+ */
+const MAX_TURNS = 10;
+const MAX_TURN_CHARS = 2_000;
+const MAX_TRANSCRIPT_CHARS = 8_000;
+const PER_LINK_PER_HOUR = 20;
+const ALL_PORTALS_PER_HOUR = 200;
 
 async function loadClientContext(clientId: number): Promise<string> {
   const lines: string[] = [];
@@ -176,7 +192,7 @@ export async function portalChat(
   if (!token || token.length < 16) {
     return { ok: false, error: "Invalid portal session." };
   }
-  if (history.length === 0 || history[history.length - 1].role !== "user") {
+  if (!Array.isArray(history) || history.length === 0 || history[history.length - 1].role !== "user") {
     return { ok: false, error: "No question to answer." };
   }
   const lastUser = history[history.length - 1].content.trim();
@@ -193,11 +209,36 @@ export async function portalChat(
     return { ok: false, error: "Portal session not found." };
   }
 
+  const perLink = checkRateLimit(`portal-chat:${client.id}`, {
+    max: PER_LINK_PER_HOUR,
+    windowMs: 60 * 60_000,
+  });
+  const overall = checkRateLimit("portal-chat:all", {
+    max: ALL_PORTALS_PER_HOUR,
+    windowMs: 60 * 60_000,
+  });
+  if (!perLink.allowed || !overall.allowed) {
+    return {
+      ok: false,
+      error:
+        "That's a lot of questions for one hour. Please try again later, or ask your account manager directly.",
+    };
+  }
+
   const context = await loadClientContext(client.id);
 
-  const transcript = history
-    .map((m) => (m.role === "user" ? `Client: ${m.content}` : `Assistant: ${m.content}`))
+  // Only the recent turns, each clipped, and only the two roles we know.
+  let transcript = history
+    .slice(-MAX_TURNS)
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => {
+      const text = String(m.content ?? "").slice(0, MAX_TURN_CHARS);
+      return m.role === "user" ? `Client: ${text}` : `Assistant: ${text}`;
+    })
     .join("\n\n");
+  if (transcript.length > MAX_TRANSCRIPT_CHARS) {
+    transcript = transcript.slice(-MAX_TRANSCRIPT_CHARS);
+  }
 
   const userPrompt = [
     `<client_context>`,

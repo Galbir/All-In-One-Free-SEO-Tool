@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { setSetting, getSetting } from "@/lib/settings-store";
 import { configuredProviders, getActiveProvider } from "@/lib/api-keys";
 import type { ConnectionMode } from "@/lib/tool-capabilities";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * What is connected, worked out rather than chosen.
@@ -20,6 +21,7 @@ import type { ConnectionMode } from "@/lib/tool-capabilities";
  * Derived from what is actually there, it cannot disagree with reality.
  */
 export async function getConnectionMode(): Promise<ConnectionMode> {
+  await guardAction("settings");
   const { getAiAvailability } = await import("@/lib/ai-availability");
   const ai = await getAiAvailability().catch(() => null);
   if (!ai) return "none";
@@ -77,6 +79,7 @@ function relativeTime(iso: string): string {
 const CONNECTED_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function getMcpStatus(): Promise<McpStatus> {
+  await guardAction("settings");
   const token = (await getSetting<string>("mcp.access_token")) || null;
   const readOnlyToken = (await getSetting<string>("mcp.readonly_token")) || null;
   const lastSeenAt = (await getSetting<string>("mcp.last_seen_at")) ?? null;
@@ -107,6 +110,7 @@ export async function getMcpStatus(): Promise<McpStatus> {
  * apply changes to live sites.
  */
 export async function generateMcpToken(): Promise<{ token: string }> {
+  await guardAction("settings");
   const token = `seo_mcp_${randomBytes(32).toString("hex")}`;
   await setSetting("mcp.access_token", token);
   revalidatePath("/settings");
@@ -114,6 +118,7 @@ export async function generateMcpToken(): Promise<{ token: string }> {
 }
 
 export async function revokeMcpToken(): Promise<void> {
+  await guardAction("settings");
   await setSetting("mcp.access_token", "");
   // Deliberately keeps last_seen_at: it is a record of what happened, and
   // clearing it would make a revoked connector look like it never existed.
@@ -128,6 +133,7 @@ export async function revokeMcpToken(): Promise<void> {
  * differently so the two are not mistaken for each other at a glance.
  */
 export async function generateMcpReadOnlyToken(): Promise<{ token: string }> {
+  await guardAction("settings");
   const token = `seo_mcp_ro_${randomBytes(32).toString("hex")}`;
   await setSetting("mcp.readonly_token", token);
   revalidatePath("/settings");
@@ -135,6 +141,7 @@ export async function generateMcpReadOnlyToken(): Promise<{ token: string }> {
 }
 
 export async function revokeMcpReadOnlyToken(): Promise<void> {
+  await guardAction("settings");
   await setSetting("mcp.readonly_token", "");
   revalidatePath("/settings");
 }
@@ -165,6 +172,7 @@ export async function getAiConnectionStatus(): Promise<{
   api: AiConnectionStatus;
   mcp: AiConnectionStatus;
 }> {
+  await guardAction("settings");
   const { ids } = await configuredProviders();
   const active = await getActiveProvider();
   const mcp = await getMcpStatus();

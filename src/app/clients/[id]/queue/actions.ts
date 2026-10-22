@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { publishQueue } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 async function ownItem(itemId: number, clientId: number) {
   const [row] = await db
@@ -24,6 +25,7 @@ export async function approveQueueItem(
   clientId: number,
   edits?: { title?: string; body?: string },
 ): Promise<{ ok: boolean; message: string }> {
+  await guardAction("edit", clientId);
   const item = await ownItem(itemId, clientId);
   if (!item) return { ok: false, message: "Queue item not found." };
   if (item.status !== "pending_review") {
@@ -55,6 +57,7 @@ export async function approveAndPublishNow(
   clientId: number,
   edits?: { title?: string; body?: string },
 ): Promise<{ ok: boolean; message: string }> {
+  await guardAction("edit", clientId);
   const item = await ownItem(itemId, clientId);
   if (!item) return { ok: false, message: "Queue item not found." };
   if (item.status === "published") {
@@ -81,6 +84,7 @@ export async function rejectQueueItem(
   clientId: number,
   note?: string,
 ): Promise<void> {
+  await guardAction("edit", clientId);
   await db
     .update(publishQueue)
     .set({
@@ -101,6 +105,7 @@ export async function deleteQueueItem(
   itemId: number,
   clientId: number,
 ): Promise<void> {
+  await guardAction("edit", clientId);
   await db
     .delete(publishQueue)
     .where(

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Writes the Claude Desktop config for the user instead of asking them
@@ -95,6 +96,7 @@ function resolveConfigPath(): string {
 }
 
 export async function installDesktopConfig(): Promise<InstallResult> {
+  await guardAction("settings");
   try {
     const root = process.cwd();
 

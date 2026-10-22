@@ -10,6 +10,7 @@ import { fetchSiteMetadata } from "@/lib/site-metadata";
 import { saveSnapshot } from "@/lib/snapshots";
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { inspectHeaders } from "@/app/tools/headers/actions";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * One omnibus SEO health check — runs every checker we have in parallel
@@ -69,6 +70,7 @@ export async function runHealthCheck(
   rawUrl: string,
   clientId?: number | null,
 ): Promise<HealthResult> {
+  await guardAction("edit", clientId);
   if (!rawUrl?.trim()) return { ok: false, error: "URL required" };
   const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 
@@ -337,6 +339,7 @@ export async function saveHealthSnapshot(opts: {
   result: HealthResult;
   note?: string;
 }): Promise<{ ok: true; id: number }> {
+  await guardAction("edit");
   if (!opts.result.ok) {
     return Promise.reject(new Error("Can't save a failed health check"));
   }

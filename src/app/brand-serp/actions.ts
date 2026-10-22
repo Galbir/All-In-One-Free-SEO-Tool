@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, type ClientSocialLinks } from "@/db/schema";
 import { scanSerp } from "@/lib/serp-scanner";
+import { guardAction } from "@/lib/action-guard";
 
 export type BrandSerpResult = {
   ok: boolean;
@@ -27,6 +28,7 @@ export type BrandSerpResult = {
 export async function captureBrandSerp(
   clientId: number,
 ): Promise<BrandSerpResult> {
+  await guardAction("edit", clientId);
   const [client] = await db
     .select()
     .from(clients)

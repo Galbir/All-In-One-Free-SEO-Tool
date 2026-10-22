@@ -6,6 +6,7 @@ import {
   type InternalLinkAiResult,
 } from "@/lib/internal-link-ai";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   siteUrl: z
@@ -30,6 +31,7 @@ export async function recommendLinks(
   _prev: RecommendState | null,
   formData: FormData,
 ): Promise<RecommendState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     siteUrl: formData.get("siteUrl"),
     draft: formData.get("draft"),

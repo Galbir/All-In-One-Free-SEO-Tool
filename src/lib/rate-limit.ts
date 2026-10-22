@@ -53,18 +53,38 @@ export function checkRateLimit(key: string, opts: RateLimitOpts): {
 }
 
 /**
- * Extract a stable client key from a request — IP from X-Forwarded-For
- * or the request URL's hostname. For self-hosted local apps, this is
- * usually "127.0.0.1"; remote callers get their real IP.
+ * The caller's IP, when it can be known, or null.
+ *
+ * `X-Forwarded-For` is a list the client starts and each proxy appends
+ * to. The FIRST entry is whatever the client chose to send, so keying a
+ * rate limit on it let anyone rotate past the limit by inventing a new
+ * header per request — even behind nginx, which appends rather than
+ * replaces. The entry a proxy you control vouches for is the LAST one.
+ *
+ * Without a trusted proxy (TRUSTED_PROXY=1), forwarding headers are not
+ * evidence of anything and are ignored. Next does not expose the socket
+ * address to server actions or route handlers, so the answer is null and
+ * callers fall back to a global limit.
+ */
+export function trustedClientIp(headers: Headers): string | null {
+  if (process.env.TRUSTED_PROXY !== "1") return null;
+  const fwd = headers.get("x-forwarded-for");
+  if (fwd) {
+    const parts = fwd
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  const real = headers.get("x-real-ip")?.trim();
+  return real || null;
+}
+
+/**
+ * A stable rate-limit key for a request: the trusted client IP, else one
+ * shared key. For a self-hosted local app that is effectively "this
+ * machine", which is what the limits below are written for.
  */
 export function clientKey(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  const real = req.headers.get("x-real-ip");
-  if (real) return real.trim();
-  try {
-    return new URL(req.url).hostname;
-  } catch {
-    return "unknown";
-  }
+  return trustedClientIp(req.headers) ?? "shared";
 }

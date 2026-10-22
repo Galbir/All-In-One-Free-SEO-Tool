@@ -6,10 +6,12 @@ import {
   importBingBacklinks,
   type BingImportResult,
 } from "@/lib/backlink-import-bing";
+import { guardAction } from "@/lib/action-guard";
 
 export async function importBingBacklinksAction(
   clientId: number,
 ): Promise<BingImportResult> {
+  await guardAction("edit", clientId);
   // A server action is a public endpoint with a nicer calling
   // convention. Without this a member could import — and therefore
   // read — backlink data for any client in the agency by passing an id.

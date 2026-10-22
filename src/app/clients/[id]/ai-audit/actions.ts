@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { auditIssues } from "@/db/schema";
 import { runAiSiteAudit } from "@/lib/ai-site-audit";
+import { guardAction } from "@/lib/action-guard";
 
 export type StartState =
   | { ok: true; auditId: number }
@@ -14,6 +15,7 @@ export async function startAiAudit(
   _prev: StartState | null,
   formData: FormData,
 ): Promise<StartState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const url = String(formData.get("url") ?? "").trim();
   if (!Number.isFinite(clientId) || clientId <= 0)
@@ -36,6 +38,7 @@ export async function toggleResolved(
   issueId: number,
   resolved: boolean,
 ): Promise<{ ok: true }> {
+  await guardAction("edit");
   await db
     .update(auditIssues)
     .set({ status: resolved ? "resolved" : "new" })
@@ -48,6 +51,7 @@ export async function saveIssueNotes(
   issueId: number,
   notes: string,
 ): Promise<{ ok: true }> {
+  await guardAction("edit");
   await db
     .update(auditIssues)
     .set({ notes: notes.trim() || null })

@@ -2,6 +2,7 @@
 
 import { generateImage, type ImageGenInput } from "@/lib/image-gen";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type GenState =
   | {
@@ -18,6 +19,7 @@ export async function runImageGen(
   _prev: GenState,
   formData: FormData,
 ): Promise<GenState> {
+  await guardAction("edit", formData.get("clientId"));
   const prompt = String(formData.get("prompt") ?? "").trim();
   const aspect = (String(formData.get("aspect") ?? "landscape") as
     | "square"

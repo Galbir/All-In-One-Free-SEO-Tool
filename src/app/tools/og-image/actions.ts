@@ -2,6 +2,7 @@
 
 import { generateOgImage, type OgTemplate } from "@/lib/og-image";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type OgState =
   | { ok: true; dataUrl: string }
@@ -11,6 +12,7 @@ export async function runOgImage(
   _prev: OgState | null,
   formData: FormData,
 ): Promise<OgState> {
+  await guardAction("edit", formData.get("clientId"));
   const title = String(formData.get("title") ?? "").trim();
   const subtitle = String(formData.get("subtitle") ?? "").trim();
   const brand = String(formData.get("brand") ?? "").trim();

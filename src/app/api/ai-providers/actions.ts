@@ -2,6 +2,7 @@
 
 import { configuredProviders, getActiveProvider } from "@/lib/api-keys";
 import type { ActiveProvider } from "@/lib/api-keys";
+import { guardAction } from "@/lib/action-guard";
 
 export type ProviderListing = {
   configured: ActiveProvider[];
@@ -14,6 +15,7 @@ export type ProviderListing = {
  * material is ever exposed.
  */
 export async function listConfiguredProviders(): Promise<ProviderListing> {
+  await guardAction("settings");
   const cfg = await configuredProviders();
   const active = await getActiveProvider();
   return { configured: cfg.ids as ActiveProvider[], active };

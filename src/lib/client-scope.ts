@@ -21,7 +21,8 @@
 
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import { inArray, type SQL } from "drizzle-orm";
+import { and, eq, inArray, type SQL } from "drizzle-orm";
+import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { clients } from "@/db/schema";
 import { currentUser, seesAllClients, visibleClientIds } from "./auth";
 
@@ -75,4 +76,46 @@ export async function assertClientParam(raw: string | undefined): Promise<void> 
   const id = Number(raw);
   if (!Number.isInteger(id)) return; // let the page's own handling deal with it
   await assertClientAccess(id);
+}
+
+/**
+ * The WHERE condition for a data export: the client the link asked for
+ * (`?clientId=` — `?client=` is accepted too, for old bookmarks), AND
+ * only clients the signed-in user may see.
+ *
+ * Exports were the one place neither rule was applied. The per-client
+ * "Export keywords" and "Download disavow file" links sent a clientId the
+ * routes never read, so each produced every client's data — and a member
+ * could download the entire agency's book from any export URL.
+ *
+ * An unparseable clientId yields an empty export rather than everything.
+ */
+export async function exportScope(
+  column: SQLiteColumn,
+  req: Request,
+): Promise<SQL | undefined> {
+  const params = new URL(req.url).searchParams;
+  const raw = params.get("clientId") ?? params.get("client");
+  const conditions: SQL[] = [];
+  if (raw !== null && raw !== "") {
+    const id = Number(raw);
+    conditions.push(
+      Number.isInteger(id) && id > 0 ? eq(column, id) : inArray(column, [-1]),
+    );
+  }
+  const ids = await scopedClientIds();
+  if (ids !== null) {
+    conditions.push(inArray(column, ids.length > 0 ? ids : [-1]));
+  }
+  if (conditions.length === 0) return undefined;
+  return conditions.length === 1 ? conditions[0] : and(...conditions);
+}
+
+/**
+ * Non-throwing form of `assertClientAccess`, for route handlers that
+ * answer with their own 404 rather than Next's notFound() page.
+ */
+export async function canAccessClient(clientId: number): Promise<boolean> {
+  const ids = await scopedClientIds();
+  return ids === null || ids.includes(clientId);
 }

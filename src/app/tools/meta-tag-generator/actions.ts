@@ -2,6 +2,7 @@
 
 import { callAI } from "@/lib/ai-call";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type MetaTagOption = {
   title: string;
@@ -40,6 +41,7 @@ export async function generateMetaTags(
   _prev: MetaTagState | null,
   formData: FormData,
 ): Promise<MetaTagState> {
+  await guardAction("edit", formData.get("clientId"));
   const topic = String(formData.get("topic") ?? "").trim();
   const keyword = String(formData.get("keyword") ?? "").trim();
   const brand = String(formData.get("brand") ?? "").trim();

@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { gbpPlaybookCompletions } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Compute the "occurrence key" for an item given its cadence. Once-only
@@ -35,6 +36,7 @@ export async function togglePlaybookItem(
   itemId: string,
   cadence: "once" | "weekly" | "monthly" | "quarterly",
 ): Promise<void> {
+  await guardAction("edit", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0) return;
   const occurrence = occurrenceKey(cadence);
 
@@ -83,6 +85,7 @@ export async function getCompletionsForClient(clientId: number): Promise<{
   monthly: Set<string>;
   quarterly: Set<string>;
 }> {
+  await guardAction("read", clientId);
   const all = await db
     .select()
     .from(gbpPlaybookCompletions)

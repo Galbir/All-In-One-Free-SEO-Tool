@@ -17,6 +17,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { toolFindings, type ToolFinding } from "@/db/schema";
 import { revalidatePath } from "next/cache";
+import { guardAction } from "@/lib/action-guard";
 
 export type FindingStatus = "new" | "in_progress" | "resolved" | "ignored";
 
@@ -25,6 +26,7 @@ export async function markFindingStatus(
   status: FindingStatus,
   note?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await guardAction("edit");
   if (!Number.isFinite(findingId)) {
     return { ok: false, error: "Invalid finding id" };
   }
@@ -50,6 +52,7 @@ export async function markFindingStatus(
 export async function getFindingsForRun(
   runId: number,
 ): Promise<ToolFinding[]> {
+  await guardAction("read");
   return db
     .select()
     .from(toolFindings)

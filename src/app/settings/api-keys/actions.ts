@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { apiKeys } from "@/db/schema";
 import { generateKey } from "@/lib/api-auth";
+import { guardAction } from "@/lib/action-guard";
 
 export type CreateApiKeyState =
   | { ok: true; rawKey: string; keyId: number }
@@ -14,6 +15,7 @@ export async function createApiKey(
   _prev: CreateApiKeyState | null,
   formData: FormData,
 ): Promise<CreateApiKeyState> {
+  await guardAction("settings", formData.get("clientId"));
   const name = String(formData.get("name") ?? "").trim();
   const scope = String(formData.get("scope") ?? "read").trim();
 
@@ -41,6 +43,7 @@ export async function createApiKey(
 }
 
 export async function revokeApiKey(id: number): Promise<{ ok: boolean }> {
+  await guardAction("settings");
   await db
     .update(apiKeys)
     .set({ revokedAt: new Date() })

@@ -11,6 +11,7 @@ import { fetchCruxData } from "@/lib/crux";
 import { recordToolRun } from "@/lib/tool-findings";
 import { geoScoreFindings } from "@/lib/tool-finding-builders";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type GeoScoreState =
   | {
@@ -55,6 +56,7 @@ export async function runGeoScore(
   _prev: GeoScoreState,
   formData: FormData,
 ): Promise<GeoScoreState> {
+  await guardAction("edit", formData.get("clientId"));
   const urlRaw = String(formData.get("url") ?? "").trim();
   const clientIdRaw = String(formData.get("clientId") ?? "").trim();
   if (!urlRaw) return { ok: false, error: "URL required." };

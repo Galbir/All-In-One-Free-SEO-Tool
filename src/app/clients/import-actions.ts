@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { clients } from "@/db/schema";
 import { detectTechStack } from "@/lib/tech-detect";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 const niches = ["local", "ecommerce", "saas", "blog", "services"] as const;
 
@@ -69,6 +70,7 @@ export async function importClientsCsv(
   _prev: ImportClientsResult | null,
   formData: FormData,
 ): Promise<ImportClientsResult> {
+  await guardAction("edit", formData.get("clientId"));
   const csv = String(formData.get("csv") ?? "").trim();
   if (!csv) return { ok: false, error: "CSV is empty." };
 

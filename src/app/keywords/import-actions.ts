@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, keywords } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 export type ImportResult =
   | { ok: true; added: number; skipped: number; total: number }
@@ -60,6 +61,7 @@ export async function importKeywords(
   _prev: ImportResult | null,
   formData: FormData,
 ): Promise<ImportResult> {
+  await guardAction("edit", formData.get("clientId"));
   const csv = String(formData.get("csv") ?? "").trim();
   const targetClientId = Number(formData.get("clientId"));
   if (!csv) return { ok: false, error: "CSV is empty." };

@@ -2,6 +2,7 @@
 
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 const UA =
   "Mozilla/5.0 (compatible; SeoToolBot/0.1; +https://localhost) InternalLinker";
@@ -154,6 +155,7 @@ export async function suggestInternalLinks(input: {
   limit?: number;
   clientId?: number | null;
 }): Promise<InternalLinkResult> {
+  await guardAction("edit", input?.clientId);
   const target = input.targetUrl.trim();
   const keyword = input.targetKeyword.trim();
   if (!target || !keyword) {

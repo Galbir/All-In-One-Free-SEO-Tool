@@ -8,6 +8,7 @@ import {
   type GradeResult,
 } from "@/lib/content-grader";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   targetKeyword: z.string().trim().min(2).max(120),
@@ -28,6 +29,7 @@ export async function gradeContent(
   _prev: GradeContentState | null,
   formData: FormData,
 ): Promise<GradeContentState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     targetKeyword: formData.get("targetKeyword"),
     country: formData.get("country") || "US",

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { linkIntersect, type IntersectResult } from "@/lib/link-intersect";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const domain = z.string().trim().min(3).max(255);
 
@@ -24,6 +25,7 @@ export async function runLinkIntersect(
   _prev: IntersectState | null,
   formData: FormData,
 ): Promise<IntersectState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     yourDomain: formData.get("yourDomain"),
     competitor1: formData.get("competitor1"),

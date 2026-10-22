@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, keywords, outreachContacts, competitors } from "@/db/schema";
 import { fetchSiteMetadata } from "@/lib/site-metadata";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Parses a CSV string into rows of objects keyed by header.
@@ -123,6 +124,7 @@ export async function previewCsv(text: string): Promise<
   | { ok: true; preview: CsvPreview }
   | { ok: false; error: string }
 > {
+  await guardAction("read");
   const rows = parseCsv(text);
   if (rows.length === 0) {
     return { ok: false, error: "No rows detected. Is this a valid CSV?" };
@@ -155,6 +157,7 @@ export async function importCsv(input: {
   schema: SchemaKind;
   clientId?: number;
 }): Promise<ImportResult> {
+  await guardAction("edit", input?.clientId);
   const rows = parseCsv(input.text);
   if (rows.length === 0) {
     return { ok: false, error: "No rows" };

@@ -1,6 +1,7 @@
 "use server";
 
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type UtmTouch = {
   timestamp: string;
@@ -139,6 +140,7 @@ export async function runAttribution(
   _prev: AttrState,
   formData: FormData,
 ): Promise<AttrState> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = String(formData.get("touches") ?? "").trim();
   if (!raw) return { ok: false, error: "Paste touch data first." };
   const { touches, conversions } = parsePastedTouches(raw);

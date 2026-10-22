@@ -12,6 +12,14 @@ import {
   rateLimit,
   recentLeadFor,
 } from "@/lib/grader-public";
+import { checkRateLimit, trustedClientIp } from "@/lib/rate-limit";
+
+/**
+ * Ceiling across all visitors. The per-visitor limit can only be keyed on
+ * an address when a trusted proxy supplies one; this one always holds,
+ * so the widget cannot be turned into an unlimited free crawler.
+ */
+const GLOBAL_GRADES_PER_HOUR = 60;
 
 const urlSchema = z
   .string()
@@ -54,7 +62,7 @@ export async function publicGrade(
   const h = await headers();
   return gradeForVisitor({
     url: formData.get("url"),
-    ip: h.get("x-forwarded-for") ?? h.get("x-real-ip") ?? null,
+    ip: trustedClientIp(h),
     referer: h.get("referer"),
   });
 }
@@ -71,7 +79,20 @@ export async function gradeForVisitor(input: {
 
   const prefix = ipPrefix(input.ip);
 
-  const limit = rateLimit(prefix);
+  // With no trustworthy address, every visitor lands in one "unknown"
+  // bucket, and a per-visitor limit of 5 would let one person lock the
+  // widget for everyone. Only the global ceiling applies then.
+  const limit = input.ip ? rateLimit(prefix) : { allowed: true, retryAfterSec: 0 };
+  const global = checkRateLimit("grader:global", {
+    max: GLOBAL_GRADES_PER_HOUR,
+    windowMs: 60 * 60_000,
+  });
+  if (!global.allowed) {
+    return {
+      ok: false,
+      error: "The grader is busy right now. Please try again in a little while.",
+    };
+  }
   if (!limit.allowed) {
     const mins = Math.ceil(limit.retryAfterSec / 60);
     return {
