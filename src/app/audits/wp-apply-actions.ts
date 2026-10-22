@@ -7,6 +7,7 @@ import {
   setPostSeo,
 } from "@/lib/wp-bridge";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 export type WpApplyResult =
   | { ok: true; postId: number; field: string; oldValue: string | null }
@@ -31,6 +32,7 @@ export async function applyFixViaWp(opts: {
   issueType: string;
   newValue: string;
 }): Promise<WpApplyResult> {
+  await guardAction("edit", opts?.clientId);
   const { clientId, pageUrl, issueType, newValue } = opts;
 
   if (!Number.isFinite(clientId) || clientId <= 0) {

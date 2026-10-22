@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { safeRevalidatePath } from "@/lib/safe-revalidate";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
@@ -8,6 +8,7 @@ import { clients, monitoredPages, pageChanges } from "@/db/schema";
 import { diffSnapshots, fetchSnapshot } from "@/lib/page-monitor";
 import { notify } from "@/lib/notifier";
 import { runAutomations } from "@/lib/automation-engine";
+import { guardAction } from "@/lib/action-guard";
 
 const addSchema = z.object({
   clientId: z.coerce.number().int().positive(),
@@ -33,6 +34,7 @@ export async function addMonitoredPage(
   _prev: AddMonitorResult | null,
   formData: FormData,
 ): Promise<AddMonitorResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = addSchema.safeParse({
     clientId: formData.get("clientId"),
     url: formData.get("url"),
@@ -57,26 +59,28 @@ export async function addMonitoredPage(
   // Take initial snapshot so future checks can diff against it
   await checkPageChangesInternal(row.id, /* silent */ true);
 
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
   return { ok: true, id: row.id };
 }
 
 export async function deleteMonitoredPage(monitoredPageId: number) {
+  await guardAction("edit");
   await db
     .delete(monitoredPages)
     .where(eq(monitoredPages.id, monitoredPageId));
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
 }
 
 export async function setMonitorStatus(
   monitoredPageId: number,
   status: "active" | "paused",
 ) {
+  await guardAction("edit");
   await db
     .update(monitoredPages)
     .set({ status, updatedAt: new Date() })
     .where(eq(monitoredPages.id, monitoredPageId));
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
 }
 
 async function checkPageChangesInternal(
@@ -208,15 +212,17 @@ async function checkPageChangesInternal(
     }
   }
 
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
   return { changes: diffs.length };
 }
 
 export async function checkPageChanges(monitoredPageId: number) {
+  await guardAction("edit");
   await checkPageChangesInternal(monitoredPageId);
 }
 
 export async function checkAllMonitoredPages() {
+  await guardAction("edit");
   const pages = await db
     .select({ id: monitoredPages.id })
     .from(monitoredPages)
@@ -226,5 +232,5 @@ export async function checkAllMonitoredPages() {
   for (const p of pages) {
     await checkPageChangesInternal(p.id);
   }
-  revalidatePath("/monitor");
+  safeRevalidatePath("/monitor");
 }

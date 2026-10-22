@@ -2,6 +2,7 @@
 
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type HreflangEntry = {
   lang: string;
@@ -105,6 +106,7 @@ function parseHttpLinkHeader(linkHeader: string | null): {
 }
 
 export async function checkHreflang(rawUrl: string): Promise<HreflangResult> {
+  await guardAction("edit");
   if (!rawUrl?.trim()) return { ok: false, error: "URL is required" };
   const url = normalize(rawUrl.trim());
 

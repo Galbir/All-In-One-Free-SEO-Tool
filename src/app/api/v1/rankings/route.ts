@@ -4,6 +4,7 @@ import { keywordRankings, keywords } from "@/db/schema";
 import {
   authenticateRequest,
   jsonError,
+  parseLimit,
   jsonOk,
   requireScope,
 } from "@/lib/api-auth";
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
   const keywordId = url.searchParams.get("keywordId");
   const clientId = url.searchParams.get("clientId");
   const days = Math.min(Number(url.searchParams.get("days") ?? 90), 365);
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? 500), 2000);
+  const limit = parseLimit(url.searchParams.get("limit"), 500, 2000);
 
   if (!keywordId && !clientId) {
     return jsonError(400, "Specify keywordId or clientId");

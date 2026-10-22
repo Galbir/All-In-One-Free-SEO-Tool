@@ -45,7 +45,7 @@ function isLocalIp(ip: string): boolean {
   return false;
 }
 
-function isLocalRequest(req: Request): boolean {
+export function isLocalRequest(req: Request): boolean {
   // 1. Forwarding headers ONLY trusted when TRUSTED_PROXY=1.
   //    Without a known reverse proxy, x-forwarded-for / x-real-ip are
   //    fully caller-controlled — any local process can `curl -H
@@ -72,8 +72,17 @@ function isLocalRequest(req: Request): boolean {
   //    cases the Host header gives a weak signal — but ONLY when
   //    combined with the fact that the socket binding is local.
   const hostHeader = req.headers.get("host") ?? "";
-  const hostname = hostHeader.split(":")[0].toLowerCase();
+  const hostname = (
+    hostHeader.startsWith("[")
+      ? hostHeader.slice(0, hostHeader.indexOf("]") + 1) // [::1]:3000
+      : hostHeader.split(":")[0]
+  ).toLowerCase();
   if (LOCAL_HOSTS.has(hostname)) return true;
+  // A Host header that names something else is a remote caller. Falling
+  // through to the URL check below let it pass anyway: Next builds the
+  // request URL from the address it is bound to, which reads
+  // "localhost" for every caller.
+  if (hostHeader) return false;
 
   // 3. URL fallback — covers curl/scripts that don't send Host
   try {
@@ -127,28 +136,18 @@ function isCrossSiteRequest(req: Request): boolean {
   return false;
 }
 
-export function guardAdminRequest(req: Request): Response | null {
-  // Cross-site check runs FIRST and applies even when APP_PASSWORD is
-  // set: the cookie is sent automatically on a cross-site POST, so a
-  // password does not protect against CSRF on its own.
-  if (isCrossSiteRequest(req)) {
-    return Response.json(
-      {
-        ok: false,
-        error:
-          "Cross-site request blocked. Admin actions can only be triggered from the app itself.",
-      },
-      { status: 403 },
-    );
-  }
+function crossSiteDenied(): Response {
+  return Response.json(
+    {
+      ok: false,
+      error:
+        "Cross-site request blocked. Admin actions can only be triggered from the app itself.",
+    },
+    { status: 403 },
+  );
+}
 
-  // If a password is configured, middleware already validated the cookie
-  // before this route was reached — we don't need to re-check.
-  if (process.env.APP_PASSWORD) return null;
-
-  // Without a password, restrict admin actions to same-machine callers.
-  if (isLocalRequest(req)) return null;
-
+function localOnlyDenied(): Response {
   return Response.json(
     {
       ok: false,
@@ -157,4 +156,89 @@ export function guardAdminRequest(req: Request): Response | null {
     },
     { status: 403 },
   );
+}
+
+/**
+ * Guard for the destructive, install-wide endpoints: backup, restore,
+ * update, restart, shutdown, desktop shortcut, branding config.
+ *
+ * Three modes, matching the proxy:
+ *
+ *   accounts — the signed-in user must be the OWNER. This used to be
+ *              "APP_PASSWORD is set, so the proxy already checked" —
+ *              which let any account through, including a client
+ *              viewer, to download or replace the whole database. It
+ *              also locked a remote owner out when no APP_PASSWORD was
+ *              set, because the fallback was a localhost check.
+ *   password — the proxy validated the shared-password cookie.
+ *   open     — same-machine requests only.
+ *
+ * The cross-site check runs first in every mode: a cookie is sent
+ * automatically on a cross-site POST, so a login does not stop CSRF.
+ */
+export async function guardAdminRequest(
+  req: Request,
+): Promise<Response | null> {
+  if (isCrossSiteRequest(req)) return crossSiteDenied();
+
+  const { accountsEnabled, currentUser, canManageSettings } = await import(
+    "./auth"
+  );
+  if (accountsEnabled()) {
+    const me = await currentUser();
+    if (!me) {
+      return Response.json(
+        { ok: false, error: "Sign in first." },
+        { status: 401 },
+      );
+    }
+    if (!canManageSettings(me.role)) {
+      return Response.json(
+        { ok: false, error: "Only the workspace owner can do this." },
+        { status: 403 },
+      );
+    }
+    return null;
+  }
+
+  // If a password is configured, the proxy already validated the cookie
+  // before this route was reached.
+  if (process.env.APP_PASSWORD) return null;
+
+  // Without a password, restrict admin actions to same-machine callers.
+  if (isLocalRequest(req)) return null;
+  return localOnlyDenied();
+}
+
+/**
+ * Guard for read-only downloads of one client's documents (invoice and
+ * report PDFs): any signed-in user who may see that client.
+ *
+ * Same open-mode rule as the admin guard — on an install with no auth at
+ * all, only this machine may enumerate /invoices/N/pdf.
+ */
+export async function guardClientDocument(
+  req: Request,
+  clientId: number | null,
+): Promise<Response | null> {
+  if (isCrossSiteRequest(req)) return crossSiteDenied();
+
+  const { accountsEnabled, currentUser, canSeeClient } = await import("./auth");
+  if (accountsEnabled()) {
+    const me = await currentUser();
+    if (!me) {
+      return Response.json(
+        { ok: false, error: "Sign in first." },
+        { status: 401 },
+      );
+    }
+    if (clientId !== null && !(await canSeeClient(me, clientId))) {
+      // 404, not 403: don't confirm the document exists.
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    return null;
+  }
+  if (process.env.APP_PASSWORD) return null;
+  if (isLocalRequest(req)) return null;
+  return localOnlyDenied();
 }

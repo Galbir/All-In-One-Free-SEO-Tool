@@ -7,6 +7,7 @@ import {
 } from "@/lib/aio-passage-scorer";
 import { extractMainContent } from "@/lib/main-content-extractor";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type AnalyzeState =
   | { ok: true; passages: PassageScore[]; sourceUrl?: string; sourceTitle?: string }
@@ -17,6 +18,7 @@ export async function analyzePassages(
   _prev: AnalyzeState,
   formData: FormData,
 ): Promise<AnalyzeState> {
+  await guardAction("edit", formData.get("clientId"));
   const md = String(formData.get("markdown") ?? "").trim();
   if (!md) return { ok: false, error: "Paste a draft first." };
   const passages = scoreAllPassages(md);
@@ -43,6 +45,7 @@ export async function suggestRewrite(
   passage: string,
   score: number,
 ): Promise<{ ok: true; rewrite: string } | { ok: false; error: string }> {
+  await guardAction("edit");
   const r = await suggestRewriteHint(passage, score);
   if (!r)
     return {
@@ -62,6 +65,7 @@ export async function analyzeUrl(
   _prev: AnalyzeState,
   formData: FormData,
 ): Promise<AnalyzeState> {
+  await guardAction("edit", formData.get("clientId"));
   const rawUrl = String(formData.get("url") ?? "").trim();
   if (!rawUrl) return { ok: false, error: "Enter a URL first." };
   let url = rawUrl;
@@ -119,6 +123,7 @@ export async function batchRewrite(
   ok: true;
   rewrites: { index: number; before: string; after: string | null }[];
 } | { ok: false; error: string }> {
+  await guardAction("edit");
   const targets = passages.filter((p) => p.score < threshold);
   if (targets.length === 0) {
     return {

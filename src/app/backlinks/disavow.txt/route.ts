@@ -2,20 +2,21 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { backlinks, clients } from "@/db/schema";
+import { exportScope } from "@/lib/client-scope";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const clientIdParam = url.searchParams.get("client");
-  const clientId = clientIdParam ? Number(clientIdParam) : null;
-
-  const where = clientId
-    ? and(
-        eq(backlinks.status, "disavow"),
-        eq(backlinks.clientId, clientId),
-      )
-    : eq(backlinks.status, "disavow");
+  // The per-client page links ?clientId=; old links used ?client=.
+  // exportScope reads both. Reading only `client` meant the per-client
+  // button downloaded every client's disavowed domains — a file meant
+  // for one Search Console property.
+  const params = new URL(request.url).searchParams;
+  const clientId = params.get("clientId") ?? params.get("client");
+  const where = and(
+    eq(backlinks.status, "disavow"),
+    await exportScope(backlinks.clientId, request),
+  );
 
   const rows = await db
     .select({
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
   }
 
   const filename = clientId
-    ? `disavow-client-${clientId}.txt`
+    ? `disavow-client-${clientId.replace(/[^0-9]/g, "")}.txt`
     : `disavow-all.txt`;
 
   return new NextResponse(lines.join("\n"), {

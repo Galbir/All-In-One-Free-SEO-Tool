@@ -14,6 +14,7 @@ import { inspectGscUrl, inspectionFailure, type UrlInspection } from "@/lib/goog
 import { saveToolRun } from "@/lib/tool-runs";
 import { callAI, lastAiFailure } from "@/lib/ai-call";
 import type { AiFailure } from "@/lib/ai-error";
+import { guardAction } from "@/lib/action-guard";
 
 export type CoverageState =
   | { ok: true; site: string; rows: UrlInspection[]; summary: Record<string, number>; aiFailure?: AiFailure | null }
@@ -25,6 +26,7 @@ export async function runCoverage(
   _prev: CoverageState | null,
   formData: FormData,
 ): Promise<CoverageState> {
+  await guardAction("edit", formData.get("clientId"));
   const site = String(formData.get("site") ?? "").trim();
   const urlsRaw = String(formData.get("urls") ?? "").trim();
   if (!site) return { ok: false, error: "Pick a GSC property." };
@@ -115,6 +117,7 @@ export async function analyzeFixesForCoverage(
   _prev: FixPlanState,
   formData: FormData,
 ): Promise<FixPlanState> {
+  await guardAction("edit", formData.get("clientId"));
   const rowsRaw = String(formData.get("rows") ?? "");
   let rows: UrlInspection[] = [];
   try {

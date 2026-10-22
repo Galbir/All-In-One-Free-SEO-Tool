@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { detectRefresh, type RefreshPlan } from "@/lib/refresh-detector";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   url: z
@@ -23,6 +24,7 @@ export async function runRefresh(
   _prev: RefreshState | null,
   formData: FormData,
 ): Promise<RefreshState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     url: formData.get("url"),
     targetKeyword: formData.get("targetKeyword"),

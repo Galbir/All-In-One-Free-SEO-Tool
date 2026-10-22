@@ -19,6 +19,7 @@ import {
 } from "@/lib/gbp-api";
 import { callAI, lastAiFailure } from "@/lib/ai-call";
 import type { AiFailure } from "@/lib/ai-error";
+import { guardAction } from "@/lib/action-guard";
 
 export type ReplyLocation = {
   /** "accounts/X/locations/Y" */
@@ -36,6 +37,7 @@ export async function listReplyLocations(): Promise<
   | { ok: true; locations: ReplyLocation[]; aiFailure?: AiFailure | null }
   | { ok: false; error: string }
 > {
+  await guardAction("read");
   try {
     const accounts = await listGbpAccounts();
     const out: ReplyLocation[] = [];
@@ -66,6 +68,7 @@ export async function fetchReviewsWithDrafts(
   locationName: string,
   businessName: string,
 ): Promise<{ ok: true; reviews: ReviewWithDraft[]; aiFailure?: AiFailure | null } | { ok: false; error: string }> {
+  await guardAction("read");
   try {
     const reviews = await listGbpReviews({ locationName, pageSize: 50 });
     const out: ReviewWithDraft[] = [];
@@ -149,6 +152,7 @@ export async function submitReply(
   _prev: SubmitReplyState,
   formData: FormData,
 ): Promise<SubmitReplyState> {
+  await guardAction("edit", formData.get("clientId"));
   const reviewName = String(formData.get("reviewName") ?? "");
   const comment = String(formData.get("comment") ?? "").trim();
   if (!reviewName) return { ok: false, error: "Missing review name." };

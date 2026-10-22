@@ -17,6 +17,7 @@ function generateToken(): string {
 }
 
 export async function generateShareToken(clientId: number): Promise<void> {
+  await guardAction("edit", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0) return;
   let attempts = 0;
   while (attempts < 5) {
@@ -35,6 +36,7 @@ export async function generateShareToken(clientId: number): Promise<void> {
 }
 
 export async function revokeShareToken(clientId: number): Promise<void> {
+  await guardAction("edit", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0) return;
   await db
     .update(clients)
@@ -45,6 +47,7 @@ export async function revokeShareToken(clientId: number): Promise<void> {
 
 import { sendMail } from "@/lib/mailer";
 import { getSetting } from "@/lib/settings-store";
+import { guardAction } from "@/lib/action-guard";
 
 export type EmailPortalResult =
   | { ok: true }
@@ -55,6 +58,7 @@ export async function emailPortalLink(input: {
   recipientEmail?: string;
   baseUrl: string;
 }): Promise<EmailPortalResult> {
+  await guardAction("edit", input?.clientId);
   if (!Number.isFinite(input.clientId) || input.clientId <= 0) {
     return { ok: false, error: "Invalid client" };
   }

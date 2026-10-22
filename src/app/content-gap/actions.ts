@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema";
 import { getGscTopQueries, type GscKeyword } from "@/lib/google-data";
+import { guardAction } from "@/lib/action-guard";
 
 export type GapResult =
   | {
@@ -29,6 +30,7 @@ export type GapResult =
 export async function analyzeContentGap(opts: {
   clientId: number;
 }): Promise<GapResult> {
+  await guardAction("edit", opts?.clientId);
   const [client] = await db
     .select()
     .from(clients)

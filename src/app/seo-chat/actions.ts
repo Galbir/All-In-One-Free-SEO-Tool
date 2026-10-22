@@ -11,6 +11,7 @@ import {
   retrieveKnowledge,
   renderKnowledgeContext,
 } from "@/lib/seo-knowledge-base";
+import { guardAction } from "@/lib/action-guard";
 
 export type AnswerLength = "short" | "detailed";
 
@@ -114,6 +115,7 @@ export async function seoChat(
   modelChoice?: { provider?: string; model?: string },
   conversationId?: number | null,
 ): Promise<SeoChatResearchResult> {
+  await guardAction("edit");
   if (history.length === 0 || history[history.length - 1].role !== "user") {
     return { ok: false, error: "No question to answer." };
   }

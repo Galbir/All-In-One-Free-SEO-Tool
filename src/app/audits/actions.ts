@@ -12,10 +12,12 @@ import { confidenceForIssue } from "@/lib/audit-confidence";
 import { notify, type NotificationField } from "@/lib/notifier";
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automation-engine";
+import { guardAction } from "@/lib/action-guard";
 
 const SCORE_DROP_THRESHOLD = 5;
 
 export async function runAuditForClient(clientId: number) {
+  await guardAction("edit", clientId);
   const [client] = await db
     .select()
     .from(clients)

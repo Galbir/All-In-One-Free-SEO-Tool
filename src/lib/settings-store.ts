@@ -11,6 +11,16 @@ export type SettingKey =
    */
   | `scheduler.${string}`
   /**
+   * Background-work bookkeeping that isn't a scheduler runner: rotation
+   * cursors (`automation.cursor.<step>`), per-day caps, the weekly block's
+   * last run, report-schedule failure counts. Same open-ended reasoning.
+   */
+  | `automation.${string}`
+  /** Highest invoice sequence number issued per year: `invoices.seq.<year>`. */
+  | `invoices.${string}`
+  /** IANA time zone for schedules, e.g. "Asia/Kolkata". Unset = server time. */
+  | "workspace.timezone"
+  /**
    * Cached one-line AI narratives: `narrative.<id>`. Open-ended for the
    * same reason as the scheduler keys above — the callers live beside
    * the pages that render them, not in this union.
@@ -96,8 +106,6 @@ export type SettingKey =
   | "smtp.from_email"
   | "smtp.from_name"
   | "smtp.secure"
-  | "schedule_runner.last_run"
-  | "page_monitor_runner.last_run"
   | "daily_agent_runner.last_run"
   | "news_runner.last_run"
   | "news_runner.last_seen_at"

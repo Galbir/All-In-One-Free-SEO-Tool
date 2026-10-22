@@ -4,6 +4,7 @@ import { fetchSiteMetadata, type SiteMetadata } from "@/lib/site-metadata";
 import { detectTechStack } from "@/lib/tech-detect";
 import { runAudit, type AuditFinding } from "@/lib/audit";
 import { scanCwv, type CwvScanResult } from "@/lib/pagespeed";
+import { guardAction } from "@/lib/action-guard";
 
 export type CompareSnapshot = {
   url: string;
@@ -82,6 +83,7 @@ export async function compareDomains(
   urlA: string,
   urlB: string,
 ): Promise<CompareResult> {
+  await guardAction("edit");
   if (!urlA?.trim() || !urlB?.trim()) {
     return { ok: false, error: "Two URLs are required." };
   }

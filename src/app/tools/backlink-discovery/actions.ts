@@ -6,6 +6,7 @@ import {
   type DiscoveryResult,
 } from "@/lib/backlink-discovery";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   targetDomain: z.string().trim().min(3).max(255),
@@ -22,6 +23,7 @@ export async function runBacklinkDiscovery(
   _prev: DiscoveryState | null,
   formData: FormData,
 ): Promise<DiscoveryState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     targetDomain: formData.get("targetDomain"),
     skipVerify: formData.get("skipVerify"),

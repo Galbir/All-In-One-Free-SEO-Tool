@@ -2,6 +2,7 @@
 
 import { scanSerp } from "@/lib/serp-scanner";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type RankWhereResult = {
   domain: string;
@@ -46,6 +47,7 @@ export async function checkRank(
   _prev: RankWhereState,
   formData: FormData,
 ): Promise<RankWhereState> {
+  await guardAction("edit", formData.get("clientId"));
   const domain = normalizeDomain(String(formData.get("domain") ?? ""));
   const query = String(formData.get("query") ?? "").trim();
   const country = String(formData.get("country") ?? "US").trim().toUpperCase();

@@ -5,12 +5,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, competitors, monitoredPages } from "@/db/schema";
 import { fetchSiteMetadata, type SiteMetadata } from "@/lib/site-metadata";
+import { guardAction } from "@/lib/action-guard";
 
 export type CaptureResult =
   | { ok: true; metadata: SiteMetadata }
   | { ok: false; error: string };
 
 export async function captureUrl(rawUrl: string): Promise<CaptureResult> {
+  await guardAction("edit");
   const trimmed = rawUrl.trim();
   if (!trimmed) return { ok: false, error: "Paste a URL" };
   try {
@@ -35,6 +37,7 @@ export async function saveAsCompetitor(input: {
   url: string;
   notes?: string;
 }): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+  await guardAction("edit", input?.clientId);
   if (!Number.isFinite(input.clientId) || input.clientId <= 0) {
     return { ok: false, error: "Pick a client" };
   }
@@ -68,6 +71,7 @@ export async function saveAsMonitoredPage(input: {
   url: string;
   label?: string;
 }): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+  await guardAction("edit", input?.clientId);
   if (!Number.isFinite(input.clientId) || input.clientId <= 0) {
     return { ok: false, error: "Pick a client" };
   }

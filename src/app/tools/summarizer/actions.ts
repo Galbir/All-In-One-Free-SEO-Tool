@@ -2,6 +2,7 @@
 
 import { summarizeContent, type Summary } from "@/lib/content-ai-helpers";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type SumState =
   | { ok: true; summary: Summary }
@@ -11,6 +12,7 @@ export async function runSummarize(
   _prev: SumState | null,
   formData: FormData,
 ): Promise<SumState> {
+  await guardAction("edit", formData.get("clientId"));
   const text = String(formData.get("text") ?? "").trim();
   if (!text) return { ok: false, error: "Paste some content." };
   const r = await summarizeContent({ text });

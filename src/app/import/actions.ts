@@ -4,6 +4,7 @@ import { createWorker } from "tesseract.js";
 import { callGemini as sharedCallGemini } from "@/lib/providers/gemini";
 import { callAnthropic as sharedCallAnthropic } from "@/lib/providers/anthropic";
 import { callOpenAICompat as sharedCallOpenAICompat } from "@/lib/providers/openai-compat";
+import { guardAction } from "@/lib/action-guard";
 
 export type OcrResult =
   | {
@@ -26,6 +27,7 @@ export async function extractScreenshotText(
   _prev: OcrResult | null,
   formData: FormData,
 ): Promise<OcrResult> {
+  await guardAction("edit", formData.get("clientId"));
   const dataUrl = String(formData.get("imageDataUrl") ?? "");
   if (!dataUrl.startsWith("data:image/")) {
     return { ok: false, error: "No image provided." };

@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { canEdit, canSeeClient, currentUser } from "@/lib/auth";
 import { deriveScope, unmappedFindingTypes } from "@/lib/proposal-scope";
+import { guardAction } from "@/lib/action-guard";
 
 async function assertCanEdit(): Promise<string | null> {
   const me = await currentUser();
@@ -41,6 +42,7 @@ export async function createProposal(input: {
   clientId?: number;
   leadId?: number;
 }): Promise<CreateResult> {
+  await guardAction("edit", input?.clientId);
   const result = await buildProposal(input);
   if (result.ok) revalidatePath("/proposals");
   return result;
@@ -59,6 +61,7 @@ export async function buildProposal(input: {
   clientId?: number;
   leadId?: number;
 }): Promise<CreateResult> {
+  await guardAction("edit", input?.clientId);
   const denied = await assertCanEdit();
   if (denied) return { ok: false, error: denied };
 
@@ -172,6 +175,7 @@ export async function updateProposal(
     status?: "draft" | "sent" | "accepted" | "declined";
   },
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const denied = await assertCanEdit();
   if (denied) return { ok: false, error: denied };
 
@@ -223,6 +227,7 @@ export async function updateProposal(
 export async function deleteProposal(
   id: number,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit");
   const denied = await assertCanEdit();
   if (denied) return { ok: false, error: denied };
   await db.delete(proposals).where(eq(proposals.id, id));
@@ -250,6 +255,7 @@ export async function deleteProposal(
 export async function buildKickoffReport(
   clientId: number,
 ): Promise<CreateResult> {
+  await guardAction("edit", clientId);
   const base = await buildProposal({ clientId });
   if (!base.ok) return base;
 

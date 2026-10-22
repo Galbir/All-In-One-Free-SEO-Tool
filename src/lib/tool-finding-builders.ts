@@ -296,6 +296,48 @@ export function renderFindings(result: {
 }
 
 /** A stable, readable id fragment from a human label. */
+/**
+ * Link-building opportunities: sites linking to several of your
+ * competitors and not to you.
+ *
+ * Only sites linking to TWO OR MORE competitors become findings — one
+ * link is a decision, several is a pattern, and that pattern is what makes
+ * a pitch worth writing. Keyed on the linking domain so a re-run updates
+ * the same row, and so getting the link lets it be marked resolved.
+ */
+export function linkIntersectFindings(result: {
+  competitors: readonly string[];
+  gaps: readonly {
+    domain: string;
+    competitors: readonly string[];
+    dofollow: number;
+    pages: readonly { url: string }[];
+  }[];
+}): FindingDraft[] {
+  return result.gaps
+    .filter((g) => g.competitors.length >= 2)
+    .sort(
+      (a, b) =>
+        b.competitors.length - a.competitors.length || b.dofollow - a.dofollow,
+    )
+    .slice(0, 20)
+    .map((g) => ({
+      signature: `link_intersect.${slug(g.domain)}`,
+      title: `${g.domain} links to ${g.competitors.length} competitors but not to you`,
+      severity: g.competitors.length >= 3 && g.dofollow > 0 ? "medium" : "low",
+      category: "backlinks",
+      details:
+        `Links to ${g.competitors.join(", ")}` +
+        (g.dofollow > 0 ? ` (${g.dofollow} followed)` : " (all nofollow)") +
+        `. Pages: ${g.pages
+          .slice(0, 3)
+          .map((p) => p.url)
+          .join(", ")}${g.pages.length > 3 ? ` and ${g.pages.length - 3} more` : ""}.`,
+      fixSteps:
+        "Read the linking page, find what earned your competitors a place on it (a list, a review, a resource page), and pitch the same thing for your site.",
+    }));
+}
+
 function slug(s: string): string {
   return s
     .toLowerCase()

@@ -199,3 +199,13 @@ export function ensureEncrypted(value: string): string {
   if (!value) return value;
   return isEncrypted(value) ? value : encrypt(value);
 }
+
+/**
+ * Where the encryption key lives, for the Backup screen: "env" when it
+ * comes from SEO_ENCRYPTION_KEY, the file path when it is a file, or null
+ * when no key exists yet (nothing has been encrypted).
+ */
+export function encryptionKeyLocation(): "env" | { file: string } | null {
+  if (process.env.SEO_ENCRYPTION_KEY) return "env";
+  return existsSync(KEY_FILE) ? { file: KEY_FILE } : null;
+}

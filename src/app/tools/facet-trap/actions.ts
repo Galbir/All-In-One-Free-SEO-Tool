@@ -3,6 +3,7 @@
 import { detectFacetTraps, type FacetTrapReport } from "@/lib/facet-trap";
 import { recordToolRun } from "@/lib/tool-findings";
 import { facetTrapFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 export type FacetTrapState =
   | { ok: true; report: FacetTrapReport }
@@ -13,6 +14,7 @@ export async function runFacetTrap(
   _prev: FacetTrapState,
   formData: FormData,
 ): Promise<FacetTrapState> {
+  await guardAction("edit", formData.get("clientId"));
   const url = String(formData.get("url") ?? "").trim();
   if (!url) return { ok: false, error: "URL required." };
   let parsed: URL;

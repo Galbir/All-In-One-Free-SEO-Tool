@@ -64,6 +64,7 @@ export async function scoreContent(opts: {
   content: string;
   targetKeyword: string;
 }): Promise<ContentScoreResult> {
+  await guardAction("edit");
   const content = opts.content?.trim() ?? "";
   const keyword = opts.targetKeyword?.trim() ?? "";
   if (!content) return { ok: false, error: "Paste some content first" };
@@ -278,12 +279,14 @@ function computeScore(
 }
 
 import { saveSnapshot } from "@/lib/snapshots";
+import { guardAction } from "@/lib/action-guard";
 
 export async function saveContentScoreSnapshot(opts: {
   content: string;
   targetKeyword: string;
   result: ContentScoreResult;
 }): Promise<{ ok: true; id: number }> {
+  await guardAction("edit");
   if (!opts.result.ok) {
     return Promise.reject(new Error("Can't save a failed score"));
   }

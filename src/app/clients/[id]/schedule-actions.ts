@@ -10,12 +10,13 @@ import {
   sendReportEmail,
 } from "@/lib/report-mailer";
 import { getSmtpConfig } from "@/lib/mailer";
+import { guardAction } from "@/lib/action-guard";
 
 const scheduleInput = z.object({
   clientId: z.coerce.number().int().positive(),
   template: z.enum(["executive", "detailed", "technical"]).default("detailed"),
   frequency: z.enum(["weekly", "monthly"]).default("monthly"),
-  dayOfMonth: z.coerce.number().int().min(1).max(28).default(1),
+  dayOfMonth: z.coerce.number().int().min(1).max(31).default(1),
   dayOfWeek: z.coerce.number().int().min(0).max(6).default(1),
   hourOfDay: z.coerce.number().int().min(0).max(23).default(9),
   recipients: z.string().trim().min(1, "Add at least one recipient"),
@@ -36,6 +37,7 @@ export async function saveSchedule(
   _prev: SaveScheduleResult | null,
   formData: FormData,
 ): Promise<SaveScheduleResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = scheduleInput.safeParse({
     clientId: formData.get("clientId"),
     template: formData.get("template"),
@@ -54,12 +56,17 @@ export async function saveSchedule(
     return { ok: false, error: "No valid email addresses found" };
   }
 
-  const next = computeNextSendAt({
-    frequency: parsed.data.frequency,
-    dayOfMonth: parsed.data.dayOfMonth,
-    dayOfWeek: parsed.data.dayOfWeek,
-    hourOfDay: parsed.data.hourOfDay,
-  });
+  const { workspaceTimeZone } = await import("@/lib/timezone");
+  const next = computeNextSendAt(
+    {
+      frequency: parsed.data.frequency,
+      dayOfMonth: parsed.data.dayOfMonth,
+      dayOfWeek: parsed.data.dayOfWeek,
+      hourOfDay: parsed.data.hourOfDay,
+    },
+    new Date(),
+    await workspaceTimeZone(),
+  );
 
   // Upsert: one schedule per (clientId, template) — keeps UX simple
   const existing = await db
@@ -110,6 +117,7 @@ export async function saveSchedule(
 }
 
 export async function deleteSchedule(scheduleId: number, clientId: number) {
+  await guardAction("edit", clientId);
   await db
     .delete(reportSchedules)
     .where(eq(reportSchedules.id, scheduleId));
@@ -121,6 +129,7 @@ export async function sendReportNow(opts: {
   template: "executive" | "detailed" | "technical";
   recipients: string;
 }): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit", opts?.clientId);
   const smtp = await getSmtpConfig();
   if (!smtp) {
     return {

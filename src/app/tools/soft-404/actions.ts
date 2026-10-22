@@ -4,6 +4,7 @@ import { z } from "zod";
 import { findSoft404s, type Soft404Result } from "@/lib/soft-404-catcher";
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { clientIdFrom } from "@/lib/client-id-field";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   startUrl: z
@@ -66,6 +67,7 @@ export async function runSoft404(
   _prev: SoftState | null,
   formData: FormData,
 ): Promise<SoftState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     startUrl: formData.get("startUrl"),
     maxPages: formData.get("maxPages") || 100,

@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { runAudit, type AuditFinding } from "@/lib/audit";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   url: z
@@ -28,6 +29,7 @@ export async function gradeSite(
   _prev: GraderResult | null,
   formData: FormData,
 ): Promise<GraderResult> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({ url: formData.get("url") });
   if (!parsed.success) {
     return { ok: false, error: "Enter a valid URL." };

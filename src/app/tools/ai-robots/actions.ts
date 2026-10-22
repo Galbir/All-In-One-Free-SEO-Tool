@@ -4,6 +4,7 @@
 import { auditAiBotRobots, type RobotsAudit } from "@/lib/ai-bot-robots";
 import { findingDraftsFor } from "@/lib/ai-robots-findings";
 import { recordToolRun } from "@/lib/tool-findings";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Server action: run the AI-bot robots audit. Called by the client form.
@@ -23,6 +24,7 @@ export async function runAiRobotsAudit(
   url: string,
   clientId?: number,
 ): Promise<RobotsAudit> {
+  await guardAction("edit", clientId);
   const audit = await auditAiBotRobots(url);
   if (!audit.ok) return audit;
 

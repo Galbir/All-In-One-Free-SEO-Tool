@@ -9,6 +9,7 @@ import {
   scanDomainAuthors,
   type AuthorObservation,
 } from "@/lib/author-authority";
+import { guardAction } from "@/lib/action-guard";
 
 export type ScanState =
   | {
@@ -23,6 +24,7 @@ export async function runAuthorScan(
   _prev: ScanState,
   formData: FormData,
 ): Promise<ScanState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const domain = String(formData.get("domain") ?? "")
     .trim()
@@ -60,6 +62,7 @@ export async function runAuthorScan(
 }
 
 export async function listAuthorRecords(clientId: number) {
+  await guardAction("read", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0) return [];
   return db
     .select()

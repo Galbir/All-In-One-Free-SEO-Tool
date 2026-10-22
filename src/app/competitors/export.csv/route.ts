@@ -2,10 +2,12 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, competitors } from "@/db/schema";
 import { csvResponse } from "@/lib/csv-export";
+import { exportScope } from "@/lib/client-scope";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const scope = await exportScope(competitors.clientId, req);
   const rows = await db
     .select({
       id: competitors.id,
@@ -18,6 +20,7 @@ export async function GET() {
     })
     .from(competitors)
     .leftJoin(clients, eq(competitors.clientId, clients.id))
+    .where(scope)
     .orderBy(desc(competitors.createdAt));
 
   return csvResponse(

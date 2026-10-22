@@ -7,8 +7,10 @@ import {
   type ImagePromptResult,
 } from "@/lib/content-helpers";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export async function getCoverImagePrompts(formData: FormData): Promise<ImagePromptResult> {
+  await guardAction("read", formData.get("clientId"));
   const title = String(formData.get("title") ?? "").trim();
   const brief = String(formData.get("brief") ?? "").trim();
   const niche = String(formData.get("niche") ?? "").trim() || null;
@@ -28,6 +30,7 @@ export async function getCoverImagePrompts(formData: FormData): Promise<ImagePro
 export async function getCategorySuggestions(
   formData: FormData,
 ): Promise<CategoryResult> {
+  await guardAction("read", formData.get("clientId"));
   const title = String(formData.get("title") ?? "").trim();
   const excerpt = String(formData.get("excerpt") ?? "").trim();
   const existingRaw = String(formData.get("existingCategories") ?? "").trim();

@@ -7,6 +7,7 @@ import {
 } from "@/lib/page-inspectors";
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { clientIdFrom } from "@/lib/client-id-field";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   url: z
@@ -99,6 +100,7 @@ export async function runValidate(
   _prev: ValidateState | null,
   formData: FormData,
 ): Promise<ValidateState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({ url: formData.get("url") });
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid URL" };

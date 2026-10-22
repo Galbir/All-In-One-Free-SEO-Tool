@@ -16,6 +16,7 @@ import { configuredProviders } from "@/lib/api-keys";
 import { getSetting } from "@/lib/settings-store";
 import { logActivity } from "@/lib/activity";
 import { classifySentiment } from "@/lib/ai-sentiment";
+import { guardAction } from "@/lib/action-guard";
 
 export type RunCheckResult =
   | {
@@ -27,6 +28,7 @@ export type RunCheckResult =
   | { ok: false; error: string };
 
 export async function runAiCheck(keywordId: number): Promise<RunCheckResult> {
+  await guardAction("edit");
   if (!Number.isFinite(keywordId) || keywordId <= 0) {
     return { ok: false, error: "Invalid keyword id" };
   }
@@ -156,6 +158,7 @@ const INTER_KEYWORD_SLEEP_MS = 250;
 export async function runAllAiChecks(opts?: {
   clientId?: number;
 }): Promise<{ ran: number; errored: number; capped: boolean }> {
+  await guardAction("edit", opts?.clientId);
   const whereClause =
     typeof opts?.clientId === "number" && Number.isFinite(opts.clientId)
       ? eq(keywords.clientId, opts.clientId)
@@ -192,6 +195,7 @@ export async function runAllAiChecks(opts?: {
 }
 
 export async function deleteVisibilityCheck(id: number): Promise<void> {
+  await guardAction("edit");
   if (!Number.isFinite(id) || id <= 0) return;
   await db.delete(aiVisibilityChecks).where(eq(aiVisibilityChecks.id, id));
   revalidatePath("/ai-visibility");
@@ -206,6 +210,7 @@ export async function deleteVisibilityCheck(id: number): Promise<void> {
 export async function setBrowserScrapedAiEnabled(
   enabled: boolean,
 ): Promise<{ ok: true; enabled: boolean }> {
+  await guardAction("edit");
   const { setSetting } = await import("@/lib/settings-store");
   await setSetting("ai_visibility.browser_scraped_enabled", enabled);
   revalidatePath("/ai-visibility");

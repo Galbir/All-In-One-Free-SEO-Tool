@@ -38,8 +38,40 @@ function dbPath(): string {
 }
 
 export async function GET(req: Request) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
+
+  // ?part=key — the encryption key, the other half of a complete backup.
+  // data.db alone restores everything except saved API keys and OAuth
+  // tokens, which are encrypted with this key and unreadable without it.
+  if (new URL(req.url).searchParams.get("part") === "key") {
+    const { encryptionKeyLocation } = await import("@/lib/crypto");
+    const where = encryptionKeyLocation();
+    if (where === "env") {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "The encryption key comes from the SEO_ENCRYPTION_KEY environment variable — back up that value instead.",
+        },
+        { status: 409 },
+      );
+    }
+    if (!where) {
+      return Response.json(
+        { ok: false, error: "No encryption key yet — nothing has been encrypted." },
+        { status: 404 },
+      );
+    }
+    const { readFileSync } = await import("node:fs");
+    return new Response(readFileSync(where.file), {
+      headers: {
+        "content-type": "application/octet-stream",
+        "content-disposition": 'attachment; filename="seo-encryption-key"',
+        "cache-control": "no-store",
+      },
+    });
+  }
 
   const src = dbPath();
   if (!existsSync(src)) {

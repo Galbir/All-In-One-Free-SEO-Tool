@@ -12,6 +12,7 @@ import {
   type CwvTrend,
 } from "@/lib/crux";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   url: z
@@ -29,6 +30,7 @@ export async function runCrux(
   _prev: CruxState,
   formData: FormData,
 ): Promise<CruxState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     url: formData.get("url"),
     formFactor: formData.get("formFactor") || undefined,
@@ -63,6 +65,7 @@ export async function runOriginSummary(
   _prev: OriginSummaryState,
   formData: FormData,
 ): Promise<OriginSummaryState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     url: formData.get("url"),
     formFactor: formData.get("formFactor") || undefined,
@@ -100,6 +103,7 @@ export async function runCruxHistory(
   _prev: CruxHistoryState,
   formData: FormData,
 ): Promise<CruxHistoryState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     url: formData.get("url"),
     formFactor: formData.get("formFactor") || undefined,

@@ -5,6 +5,7 @@ import {
   type SeoFixSuggestion,
 } from "@/lib/github-pr-generator";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type PrState =
   | { ok: true; prNumber: number; prUrl: string; branch: string; manifestPath: string }
@@ -15,6 +16,7 @@ export async function runOpenPr(
   _prev: PrState,
   formData: FormData,
 ): Promise<PrState> {
+  await guardAction("edit", formData.get("clientId"));
   const owner = String(formData.get("owner") ?? "").trim();
   const repo = String(formData.get("repo") ?? "").trim();
   const token = String(formData.get("token") ?? "").trim();

@@ -54,6 +54,92 @@ export type GbpReview = {
   reply: { comment: string; updateTime: string } | null;
 };
 
+/**
+ * Business Information v1 names a location `locations/{id}`; the v4
+ * endpoints (localPosts, reviews) need `accounts/{a}/locations/{id}`.
+ * The full v4 form is what gets stored and passed around everywhere —
+ * a business name typed into a free-text field (issue #43) produced
+ * `POST /v4/Mono Web/localPosts` and Google's HTML 404 page.
+ */
+export const GBP_LOCATION_NAME_RE = /^accounts\/[^/\s]+\/locations\/[^/\s]+$/;
+
+export function isGbpLocationName(
+  name: string | null | undefined,
+): name is string {
+  return typeof name === "string" && GBP_LOCATION_NAME_RE.test(name);
+}
+
+/** `accounts/A/locations/L` → `locations/L`, for the v1 endpoints. */
+export function toV1LocationName(name: string): string {
+  return name.replace(/^accounts\/[^/]+\//, "");
+}
+
+/** v1 `locations/L` under account `accounts/A` → `accounts/A/locations/L`. */
+export function toV4LocationName(name: string, accountName: string): string {
+  if (!name) return "";
+  return name.startsWith("accounts/") ? name : `${accountName}/${name}`;
+}
+
+/**
+ * Fit a post into Google's 1500-character summary limit without cutting
+ * a word in half: end at the last sentence break, else the last space.
+ */
+export function trimGbpSummary(text: string, max = 1500): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  const head = t.slice(0, max);
+  const sentenceEnd = Math.max(
+    head.lastIndexOf(". "),
+    head.lastIndexOf("! "),
+    head.lastIndexOf("? "),
+    head.lastIndexOf("\n"),
+  );
+  // A break in the first half would throw away too much — use a space.
+  if (sentenceEnd > max / 2) return head.slice(0, sentenceEnd + 1).trim();
+  const space = head.lastIndexOf(" ");
+  return (space > 0 ? head.slice(0, space) : head).trim();
+}
+
+/**
+ * Turn a failed Google API response body into one readable sentence.
+ *
+ * Google's front end answers a bad path with a full HTML page, which used
+ * to be stored verbatim as the queue item's error.
+ */
+export function describeGbpApiError(
+  status: number,
+  statusText: string,
+  body: string,
+  locationName: string,
+): string {
+  if (body.trimStart().startsWith("<")) {
+    return status === 404
+      ? `Google API 404 for ${locationName}: the location doesn't exist, or this Google account can't manage it. Re-pick the listing on the client's GBP → Reviews page.`
+      : `Google API ${status} ${statusText}`.trim();
+  }
+  let message = body.slice(0, 300) || statusText;
+  try {
+    const j = JSON.parse(body) as { error?: { message?: string } };
+    if (j.error?.message) message = j.error.message;
+  } catch {
+    // not JSON — keep the raw (truncated) text
+  }
+  return `Google API ${status}: ${message}`;
+}
+
+/**
+ * An expired or revoked refresh token surfaces as `invalid_grant`. On a
+ * Google Cloud consent screen left in "Testing", refresh tokens expire
+ * after 7 days, which is the usual cause.
+ */
+export function describeGbpAuthError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/invalid_grant|expired or revoked/i.test(msg)) {
+    return "Google sign-in has expired or was revoked. Reconnect Google in Settings → Google. If this keeps happening every 7 days, your Google Cloud consent screen is in \"Testing\" mode; publish it to \"In production\" to get long-lived tokens.";
+  }
+  return msg;
+}
+
 export class GbpScopeMissingError extends Error {
   constructor() {
     super(
@@ -119,7 +205,9 @@ export async function listGbpLocations(opts: {
   };
   const data = (await res.json()) as { locations?: RawLoc[] };
   return (data.locations ?? []).map((l) => ({
-    name: l.name ?? "",
+    // v1 answers `locations/L`; prefix the account so the v4 endpoints
+    // (posts, reviews) accept it.
+    name: toV4LocationName(l.name ?? "", opts.accountName),
     title: l.title ?? "",
     storefrontAddress: l.storefrontAddress ?? null,
     websiteUri: l.websiteUri ?? null,
@@ -309,7 +397,7 @@ export async function fetchGbpLocationSummary(opts: {
       "name,title,storefrontAddress,websiteUri,phoneNumbers,categories",
   });
   const res = await fetch(
-    `https://mybusinessbusinessinformation.googleapis.com/v1/${opts.locationName}?${params}`,
+    `https://mybusinessbusinessinformation.googleapis.com/v1/${toV1LocationName(opts.locationName)}?${params}`,
     { headers: { authorization: `Bearer ${token}` } },
   );
   if (res.status === 403) throw new GbpScopeMissingError();
@@ -324,7 +412,7 @@ export async function fetchGbpLocationSummary(opts: {
   };
   const l = (await res.json()) as Raw;
   return {
-    name: l.name ?? "",
+    name: opts.locationName,
     title: l.title ?? "",
     storefrontAddress: l.storefrontAddress ?? null,
     websiteUri: l.websiteUri ?? null,
@@ -361,20 +449,40 @@ export async function createGbpLocalPost(opts: {
     url?: string;
   };
   mediaUrl?: string;
+  /** BCP-47 language of the post; defaults to English. */
+  languageCode?: string;
   clientIdScope?: number;
 }): Promise<
   | { ok: true; postName: string; searchUrl: string | null }
   | { ok: false; error: string }
 > {
-  const token = await getAccessToken(opts.clientIdScope);
-  const summary = opts.summary.slice(0, 1500);
+  if (!isGbpLocationName(opts.locationName)) {
+    return {
+      ok: false,
+      error: `Invalid GBP location "${opts.locationName}". Expected accounts/…/locations/… — pick the listing on the client's GBP → Reviews page.`,
+    };
+  }
+  let token: string;
+  try {
+    token = await getAccessToken(opts.clientIdScope);
+  } catch (err) {
+    return { ok: false, error: describeGbpAuthError(err) };
+  }
+  const summary = trimGbpSummary(opts.summary);
 
   const body: Record<string, unknown> = {
-    languageCode: "en-US",
+    languageCode: opts.languageCode?.trim() || "en",
     summary,
+    // OFFER and EVENT posts need fields (dates, coupon codes) that the
+    // schedule editor doesn't collect yet, so every post is STANDARD.
     topicType: "STANDARD",
   };
-  if (opts.callToAction) {
+  // Google rejects every action type except CALL when it has no url,
+  // failing the whole post with 400 "invalid argument".
+  if (
+    opts.callToAction &&
+    (opts.callToAction.actionType === "CALL" || opts.callToAction.url)
+  ) {
     body.callToAction = opts.callToAction;
   }
   if (opts.mediaUrl) {
@@ -401,7 +509,15 @@ export async function createGbpLocalPost(opts: {
   }
   if (!res.ok) {
     const text = await res.text();
-    return { ok: false, error: text.slice(0, 300) || res.statusText };
+    return {
+      ok: false,
+      error: describeGbpApiError(
+        res.status,
+        res.statusText,
+        text,
+        opts.locationName,
+      ),
+    };
   }
   type Resp = { name?: string; searchUrl?: string };
   const data = (await res.json()) as Resp;

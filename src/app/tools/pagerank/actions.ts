@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { simulatePageRank, type PageRankResult } from "@/lib/pagerank";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   startUrl: z
@@ -22,6 +23,7 @@ export async function runPagerank(
   _prev: PrState | null,
   formData: FormData,
 ): Promise<PrState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({
     startUrl: formData.get("startUrl"),
     maxPages: formData.get("maxPages") || 150,

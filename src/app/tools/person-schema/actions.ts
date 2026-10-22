@@ -1,6 +1,7 @@
 "use server";
 
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type SaveState =
   | { ok: true; runId: number }
@@ -11,6 +12,7 @@ export async function savePersonSchema(
   _prev: SaveState,
   formData: FormData,
 ): Promise<SaveState> {
+  await guardAction("edit", formData.get("clientId"));
   const name = String(formData.get("name") ?? "").trim();
   const jsonld = String(formData.get("jsonld") ?? "").trim();
   if (!name) return { ok: false, error: "Person name is required." };

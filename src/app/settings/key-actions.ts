@@ -8,6 +8,7 @@ import {
 } from "@/lib/settings-store";
 import { type Provider } from "@/lib/api-providers";
 import { encrypt } from "@/lib/crypto";
+import { guardAction } from "@/lib/action-guard";
 
 const ALLOWED_KEYS: Record<Provider, SettingKey> = {
   openai: "api.openai",
@@ -27,6 +28,7 @@ export async function saveApiKey(
   provider: Provider,
   formData: FormData,
 ): Promise<void> {
+  await guardAction("settings", formData.get("clientId"));
   const key = ALLOWED_KEYS[provider];
   if (!key) return;
   const raw = String(formData.get("value") ?? "").trim();
@@ -41,6 +43,7 @@ export async function saveApiKey(
 }
 
 export async function saveOllamaUrl(formData: FormData): Promise<void> {
+  await guardAction("settings", formData.get("clientId"));
   const raw = String(formData.get("value") ?? "").trim();
   if (raw === "") {
     await deleteSetting("api.ollama_url");
@@ -54,6 +57,7 @@ export async function saveOllamaUrl(formData: FormData): Promise<void> {
 export async function setActiveProvider(
   provider: Provider | "ollama",
 ): Promise<void> {
+  await guardAction("settings");
   const allowed: (Provider | "ollama")[] = [
     "openai",
     "anthropic",
@@ -71,6 +75,7 @@ export async function setActiveProvider(
 }
 
 export async function setCreditSaverEnabled(enabled: boolean): Promise<void> {
+  await guardAction("settings");
   await setSetting("ai.credit_saver.enabled", enabled);
   revalidatePath("/settings");
 }

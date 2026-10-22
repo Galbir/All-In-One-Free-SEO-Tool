@@ -2,6 +2,7 @@
 
 import { callAIVision } from "@/lib/ai-vision";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type ParseResult =
   | { ok: true; text: string }
@@ -20,6 +21,7 @@ export async function parseScreenshot(input: {
   imageDataUrl: string;
   parseType: string;
 }): Promise<ParseResult> {
+  await guardAction("edit");
   const match = input.imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return { ok: false, error: "Invalid image data." };
   const [, mime, base64] = match;

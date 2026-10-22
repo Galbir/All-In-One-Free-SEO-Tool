@@ -4,6 +4,7 @@ import { scanCwv } from "@/lib/pagespeed";
 import { fetchCruxData } from "@/lib/crux";
 import { recordToolRun } from "@/lib/tool-findings";
 import { perfBudgetFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 export type BudgetLine = {
   label: string;
@@ -21,6 +22,7 @@ export async function runBudget(
   _prev: BudgetState,
   formData: FormData,
 ): Promise<BudgetState> {
+  await guardAction("edit", formData.get("clientId"));
   const url = String(formData.get("url") ?? "").trim();
   if (!url) return { ok: false, error: "URL required." };
   let parsed: URL;

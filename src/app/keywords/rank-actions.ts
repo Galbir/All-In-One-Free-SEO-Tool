@@ -16,6 +16,7 @@ import { checkRank, shutdownBrowser } from "@/lib/rank-checker";
 import { prefetchGscSnapshot, resolveRank } from "@/lib/rank-resolve";
 import type { GscRankLookup } from "@/lib/rank-gsc";
 import { notify } from "@/lib/notifier";
+import { guardAction } from "@/lib/action-guard";
 
 function screenshotsRoot(): string {
   if (process.env.SEO_SCREENSHOTS_DIR) return process.env.SEO_SCREENSHOTS_DIR;
@@ -54,6 +55,7 @@ export async function checkRankAction(
    */
   snapshot?: GscRankLookup | null,
 ): Promise<CheckRankResult> {
+  await guardAction("edit");
   if (!Number.isFinite(keywordId) || keywordId <= 0) {
     return { ok: false, error: "Invalid keyword id" };
   }
@@ -247,6 +249,7 @@ export type BatchRankSummary = {
  * all, which is a much shorter list.
  */
 export async function checkAllRanksAction(): Promise<BatchRankSummary> {
+  await guardAction("edit");
   const all = await db
     .select({
       id: keywords.id,
@@ -302,6 +305,7 @@ export async function checkAllRanksAction(): Promise<BatchRankSummary> {
 }
 
 export async function clearRankHistoryAction(keywordIds: number[]) {
+  await guardAction("edit");
   if (keywordIds.length === 0) return;
   await db
     .delete(keywordRankings)

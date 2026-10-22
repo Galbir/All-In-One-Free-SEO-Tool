@@ -9,6 +9,7 @@ import {
   monitoredPages,
   pageChanges,
 } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 export type Notification = {
   id: string; // composite to support multiple sources
@@ -27,6 +28,7 @@ export type Notification = {
 };
 
 export async function recentNotifications(): Promise<Notification[]> {
+  await guardAction("personal");
   const out: Notification[] = [];
 
   // Audits — last 8 across clients

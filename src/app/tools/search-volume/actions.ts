@@ -6,6 +6,7 @@ import {
   type VolumeEstimate,
 } from "@/lib/search-volume";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   queries: z.string().trim().min(1).max(20_000),
@@ -20,6 +21,7 @@ export async function estimateVolumes(
   _prev: EstimateState | null,
   formData: FormData,
 ): Promise<EstimateState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     queries: formData.get("queries"),
     country: formData.get("country") || "US",

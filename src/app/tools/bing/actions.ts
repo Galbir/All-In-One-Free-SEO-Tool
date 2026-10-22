@@ -12,8 +12,10 @@ import {
   listBingSites,
 } from "@/lib/bing-webmaster";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export async function saveBingKey(formData: FormData): Promise<void> {
+  await guardAction("edit", formData.get("clientId"));
   const key = String(formData.get("key") ?? "").trim();
   if (!key) return;
   await setSetting("bing.api_key", key);
@@ -21,6 +23,7 @@ export async function saveBingKey(formData: FormData): Promise<void> {
 }
 
 export async function clearBingKey(): Promise<void> {
+  await guardAction("edit");
   await deleteSetting("bing.api_key");
   revalidatePath("/tools/bing");
 }
@@ -58,6 +61,7 @@ export async function fetchBingInsights(
   _prev: BingInsightsState | null,
   formData: FormData,
 ): Promise<BingInsightsState> {
+  await guardAction("read", formData.get("clientId"));
   const parsed = insightsSchema.safeParse({
     siteUrl: formData.get("siteUrl"),
   });
@@ -122,6 +126,7 @@ export async function submitBingUrls(
   _prev: BingSubmitState | null,
   formData: FormData,
 ): Promise<BingSubmitState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = submitSchema.safeParse({
     siteUrl: formData.get("siteUrl"),
     urls: formData.get("urls"),
@@ -147,6 +152,7 @@ export async function submitBingUrls(
 export async function fetchBingSites(): Promise<
   { ok: true; sites: Array<{ url: string; verified: boolean }> } | { ok: false; error: string }
 > {
+  await guardAction("read");
   try {
     const sites = await listBingSites();
     return {

@@ -6,6 +6,7 @@ import {
   type ProgramResult,
 } from "@/lib/programmatic-seo";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type ProgState =
   | { ok: true; result: ProgramResult }
@@ -15,6 +16,7 @@ export async function runProgram(
   _prev: ProgState | null,
   formData: FormData,
 ): Promise<ProgState> {
+  await guardAction("edit", formData.get("clientId"));
   const csv = String(formData.get("csv") ?? "").trim();
   const slugPattern = String(formData.get("slugPattern") ?? "").trim();
   const titlePattern = String(formData.get("titlePattern") ?? "").trim();

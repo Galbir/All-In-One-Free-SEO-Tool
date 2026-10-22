@@ -17,7 +17,7 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const denied = guardAdminRequest(req);
+  const denied = await guardAdminRequest(req);
   if (denied) return denied;
   const { id: idRaw } = await ctx.params;
   const id = Number(idRaw);

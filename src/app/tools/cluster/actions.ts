@@ -2,6 +2,7 @@
 
 import { buildCluster, type ClusterPlan } from "@/lib/cluster-builder";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type ClusterState =
   | { ok: true; plan: ClusterPlan }
@@ -11,6 +12,7 @@ export async function runCluster(
   _prev: ClusterState | null,
   formData: FormData,
 ): Promise<ClusterState> {
+  await guardAction("edit", formData.get("clientId"));
   const topic = String(formData.get("topic") ?? "").trim();
   const country = String(formData.get("country") ?? "US").trim() || "US";
   if (!topic) return { ok: false, error: "Head topic required." };

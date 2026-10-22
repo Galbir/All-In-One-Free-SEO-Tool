@@ -7,6 +7,7 @@ import {
   verifyKeyFile,
 } from "@/lib/indexnow";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const submitSchema = z.object({
   host: z.string().trim().min(3).max(255),
@@ -27,6 +28,7 @@ export async function submitIndexNow(
   _prev: SubmitState | null,
   formData: FormData,
 ): Promise<SubmitState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = submitSchema.safeParse({
     host: formData.get("host"),
     urls: formData.get("urls"),
@@ -89,6 +91,7 @@ export async function verifyIndexNowKeyFile(
   _prev: { ok: boolean; error?: string } | null,
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string }> {
+  await guardAction("edit", formData.get("clientId"));
   const host = String(formData.get("host") ?? "").trim();
   if (!host) return { ok: false, error: "Host required" };
   const key = await getOrCreateIndexNowKey();

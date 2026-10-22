@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "@/lib/secure-compare";
 import { SESSION_COOKIE, verifySession } from "@/lib/session-token";
+import { expectedToken } from "@/lib/password-token";
 
 /**
  * The auth gate. Three modes, in order of precedence:
@@ -11,8 +12,8 @@ import { SESSION_COOKIE, verifySession } from "@/lib/session-token";
  *               password, one cookie. What a solo self-hoster runs.
  *   open      — neither. Local development, and the historical default.
  *
- * Middleware cannot read the database (Edge runtime, no better-sqlite3),
- * so it cannot itself discover which mode applies. It asks the Node side
+ * The proxy (formerly middleware.ts) does not open the database, so it
+ * cannot itself discover which mode applies. It asks the Node side
  * — see `accountsAreEnabled()` below for why the obvious process.env
  * approach was not enough.
  *
@@ -129,6 +130,11 @@ const PUBLIC_PATHS = [
   // cookie, so the session gate would reject every legitimate call.
   // The route refuses outright until a token has been generated.
   "/api/mcp",
+  // Edge-worker fix set. Called by a Cloudflare worker with a Bearer
+  // token and no cookie; the route checks the token itself
+  // (edgeTokenMatches) and answers 401 without one. Gated here, every
+  // password-protected install silently stopped applying edge fixes.
+  "/api/edge",
   // The embeddable site grader. Public by definition — it lives in an
   // iframe on the agency's marketing site and is aimed at strangers.
   // It exposes no client data: it grades a URL the caller supplies and
@@ -186,7 +192,7 @@ function applyEmbedHeader(req: NextRequest): Headers {
   return requestHeaders;
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const requestHeaders = applyEmbedHeader(req);
   const passthrough = () =>
     NextResponse.next({ request: { headers: requestHeaders } });
@@ -242,32 +248,20 @@ function challenge(req: NextRequest, pathname: string, to: string) {
   });
 }
 
-/**
- * Token = SHA-256(APP_PASSWORD + ".v1") expressed as 64-char hex.
- *
- * The cookie value is the HASH, never the raw password. If the cookie
- * ever leaks (XSS, network sniff, dumped logs), the attacker has to
- * crack a SHA-256 to recover APP_PASSWORD — not a free read.
- *
- * Edge runtime: crypto.subtle.digest is async, hence this helper is
- * async. Middleware now awaits it; the login route does the same.
- */
-export async function expectedToken(password: string): Promise<string> {
-  const data = new TextEncoder().encode(`${password}.v1`);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 export const config = {
   matcher: [
     /*
      * Run on every path EXCEPT:
      *  - /_next/static (static assets)
      *  - /_next/image (image optimization)
-     *  - any file with an extension (.png, .jpg, etc.)
+     *  - static files, by an explicit list of extensions
+     *
+     * The exclusion used to be "any path with a dot in it". That also
+     * excluded every data export — /clients/export.csv,
+     * /backlinks/disavow.txt, /clients/[id]/plan/plan.pdf and the rest —
+     * so on a password-protected install they downloaded with no login
+     * at all. .csv, .txt and .pdf are deliberately NOT in this list.
      */
-    "/((?!_next/static|_next/image|.*\\..*).*)",
+    "/((?!_next/static|_next/image|.*\\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|css|js|map|webmanifest)$).*)",
   ],
 };

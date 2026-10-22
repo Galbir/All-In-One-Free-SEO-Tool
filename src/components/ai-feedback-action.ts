@@ -1,6 +1,7 @@
 "use server";
 
 import { logFeedback, type AiFeature } from "@/lib/ai-learn";
+import { guardAction } from "@/lib/action-guard";
 
 export async function logAiFeedbackAction(opts: {
   feature: AiFeature;
@@ -10,6 +11,7 @@ export async function logAiFeedbackAction(opts: {
   correctedOutput?: string;
   note?: string;
 }): Promise<{ ok: boolean }> {
+  await guardAction("personal", opts?.clientId);
   const r = await logFeedback({
     feature: opts.feature,
     clientId: opts.clientId ?? undefined,

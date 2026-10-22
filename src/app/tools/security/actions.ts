@@ -2,6 +2,7 @@
 
 import { recordToolRun, type FindingDraft } from "@/lib/tool-findings";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type SecurityResult =
   | {
@@ -276,6 +277,7 @@ export async function checkSecurity(
   rawUrl: string,
   clientId?: number | null,
 ): Promise<SecurityResult> {
+  await guardAction("edit", clientId);
   if (!rawUrl?.trim()) return { ok: false, error: "URL is required" };
   const host = hostnameOf(rawUrl);
   if (!host) return { ok: false, error: "Invalid URL" };

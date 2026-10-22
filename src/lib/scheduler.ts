@@ -57,6 +57,13 @@ type Runner = {
    * right answer for most runs of most runners.
    */
   summarise?: (result: unknown) => string | null;
+  /**
+   * How long a started-but-unfinished run counts as still running before
+   * it may be retried. Defaults to STALE_RUN_MS; the crawling and
+   * rank-checking runners legitimately take longer than that, and a
+   * second replica would otherwise start a duplicate mid-run.
+   */
+  staleMs?: number;
 };
 
 /**
@@ -82,6 +89,7 @@ function runners(): Runner[] {
       id: "daily_agent",
       label: "Daily agent",
       everyMs: 24 * HOUR,
+      staleMs: 3 * HOUR,
       run: async () => (await import("./daily-agent")).tickDailyAgent(),
     },
     {
@@ -108,6 +116,15 @@ function runners(): Runner[] {
       label: "Scheduled reports",
       everyMs: 15 * MINUTE,
       run: async () => (await import("./report-mailer")).tickScheduleRunner(),
+      summarise: (r) => {
+        const s = r as { fired?: number; errors?: string[] } | null;
+        if (!s) return null;
+        const failed = s.errors?.length ?? 0;
+        if (!s.fired && !failed) return null;
+        return failed
+          ? `${s.fired ?? 0} sent, ${failed} failed — see the activity log`
+          : `${s.fired} sent`;
+      },
     },
     {
       // The uptime pinger, which has always stored history and never
@@ -131,9 +148,12 @@ function runners(): Runner[] {
       },
     },
     {
+      // Daily. This said hourly while the runner it called kept its own
+      // 24h gate, so the real cadence was daily and the screen was wrong.
       id: "page_monitor",
       label: "Page monitor",
-      everyMs: 60 * MINUTE,
+      everyMs: 24 * HOUR,
+      staleMs: 2 * HOUR,
       run: async () => (await import("./report-mailer")).tickPageMonitorRunner(),
     },
     {
@@ -156,6 +176,7 @@ function runners(): Runner[] {
       id: "tool_sweep",
       label: "Unattended tool sweep",
       everyMs: 24 * HOUR,
+      staleMs: 3 * HOUR,
       run: async () => (await import("./tool-sweep")).tickToolSweep("daily"),
       // The one runner where "finished without throwing" and "did the
       // job" came apart badly: against an unreachable site it completed
@@ -189,6 +210,7 @@ function runners(): Runner[] {
       id: "tool_sweep_weekly",
       label: "Weekly crawl-based checks",
       everyMs: 7 * 24 * HOUR,
+      staleMs: 6 * HOUR,
       run: async () => (await import("./tool-sweep")).tickToolSweep("weekly"),
       summarise: (r) => summariseSweep(r),
     },
@@ -200,6 +222,7 @@ function runners(): Runner[] {
       id: "backlink_sync",
       label: "Backlink discovery",
       everyMs: 7 * 24 * HOUR,
+      staleMs: 6 * HOUR,
       run: async () => (await import("./backlink-sync")).tickBacklinkSync(),
     },
     {
@@ -229,6 +252,17 @@ const startedKey = (id: string) => `scheduler.${id}.started_at` as const;
 const finishedKey = (id: string) => `scheduler.${id}.finished_at` as const;
 const errorKey = (id: string) => `scheduler.${id}.last_error` as const;
 const noteKey = (id: string) => `scheduler.${id}.last_note` as const;
+const failuresKey = (id: string) => `scheduler.${id}.failures` as const;
+
+/**
+ * After a failure, wait before trying again: 5 min, 10, 20, 40… capped at
+ * the runner's own interval. A failed runner used to retry on the very
+ * next 60-second tick, forever — a broken weekly crawl ran every minute.
+ */
+export function retryDelayMs(failures: number, everyMs: number): number {
+  if (failures <= 0) return 0;
+  return Math.min(everyMs, 5 * MINUTE * 2 ** Math.min(failures - 1, 20));
+}
 
 /** Process-local guard so one runner can't overlap itself. */
 const inFlight = new Set<string>();
@@ -236,17 +270,19 @@ const inFlight = new Set<string>();
 async function runOne(r: Runner, now: number): Promise<void> {
   if (inFlight.has(r.id)) return;
 
-  const [startedAt, finishedAt] = await Promise.all([
+  const [startedAt, finishedAt, failuresRaw] = await Promise.all([
     getSetting<number>(startedKey(r.id)).catch(() => null),
     getSetting<number>(finishedKey(r.id)).catch(() => null),
+    getSetting<number>(failuresKey(r.id)).catch(() => null),
   ]);
+  const failures = typeof failuresRaw === "number" ? failuresRaw : 0;
 
   // Another process (or an earlier tick) is mid-run and hasn't gone
   // stale yet — leave it alone.
   const running =
     typeof startedAt === "number" &&
     (typeof finishedAt !== "number" || finishedAt < startedAt);
-  if (running && now - startedAt < STALE_RUN_MS) return;
+  if (running && now - startedAt < (r.staleMs ?? STALE_RUN_MS)) return;
 
   // Not due yet. Measured from the last SUCCESSFUL finish, so a run
   // that crashed retries on the next tick instead of being treated as
@@ -254,12 +290,22 @@ async function runOne(r: Runner, now: number): Promise<void> {
   // whole day of automation.
   if (typeof finishedAt === "number" && now - finishedAt < r.everyMs) return;
 
+  // Backing off after a failure, measured from the failed attempt.
+  if (
+    failures > 0 &&
+    typeof startedAt === "number" &&
+    now - startedAt < retryDelayMs(failures, r.everyMs)
+  ) {
+    return;
+  }
+
   inFlight.add(r.id);
   await setSetting(startedKey(r.id), now).catch(() => undefined);
   try {
     const result = await r.run();
     await setSetting(finishedKey(r.id), Date.now()).catch(() => undefined);
     await setSetting(errorKey(r.id), null).catch(() => undefined);
+    await setSetting(failuresKey(r.id), 0).catch(() => undefined);
     // Written even when null, so a note from a previous run cannot
     // outlive the run it described.
     await setSetting(
@@ -274,7 +320,8 @@ async function runOne(r: Runner, now: number): Promise<void> {
     await setSetting(errorKey(r.id), (err as Error).message).catch(
       () => undefined,
     );
-    // Leave finished_at alone so the next tick retries.
+    await setSetting(failuresKey(r.id), failures + 1).catch(() => undefined);
+    // Leave finished_at alone so it is retried — after a backoff.
   } finally {
     inFlight.delete(r.id);
   }
@@ -287,13 +334,25 @@ let timer: ReturnType<typeof setInterval> | null = null;
  * calls it on load so a just-restarted process catches up immediately
  * instead of waiting a full tick.
  */
+let tickRunning = false;
+
 export async function tickScheduler(): Promise<void> {
-  const now = Date.now();
-  // Sequential: these all hit the same SQLite file and several launch
-  // browsers. Running six at once on a 1-vCPU VPS is how you get an
-  // audit that times out because the digest is holding the write lock.
-  for (const r of runners()) {
-    await runOne(r, now).catch(() => undefined);
+  // One pass at a time. The interval fires every minute whether or not
+  // the previous pass has finished, and a pass can spend an hour inside
+  // a rank sweep — so overlapping passes ran the OTHER runners in
+  // parallel with it, which is exactly what the sequential loop below
+  // exists to prevent.
+  if (tickRunning) return;
+  tickRunning = true;
+  try {
+    // Sequential: these all hit the same SQLite file and several launch
+    // browsers. Running six at once on a 1-vCPU VPS is how you get an
+    // audit that times out because the digest is holding the write lock.
+    for (const r of runners()) {
+      await runOne(r, Date.now()).catch(() => undefined);
+    }
+  } finally {
+    tickRunning = false;
   }
 }
 
@@ -348,7 +407,7 @@ export async function schedulerStatus(): Promise<SchedulerStatus[]> {
       const running =
         typeof startedAt === "number" &&
         (typeof finishedAt !== "number" || finishedAt < startedAt) &&
-        now - startedAt < STALE_RUN_MS;
+        now - startedAt < (r.staleMs ?? STALE_RUN_MS);
       return {
         id: r.id,
         label: r.label,

@@ -6,6 +6,7 @@ import {
   type PersonalizeResult,
 } from "@/lib/outreach-personalizer";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   prospectUrl: z
@@ -28,6 +29,7 @@ export async function runPersonalize(
   _prev: OutreachState | null,
   formData: FormData,
 ): Promise<OutreachState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     prospectUrl: formData.get("prospectUrl"),
     template: formData.get("template"),

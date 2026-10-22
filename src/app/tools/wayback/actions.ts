@@ -1,6 +1,7 @@
 "use server";
 
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type WaybackSnap = {
   ts: string;
@@ -17,6 +18,7 @@ export async function runWayback(
   _prev: WaybackState | null,
   formData: FormData,
 ): Promise<WaybackState> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = String(formData.get("url") ?? "").trim();
   if (!raw) return { ok: false, error: "Enter a URL." };
   const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;

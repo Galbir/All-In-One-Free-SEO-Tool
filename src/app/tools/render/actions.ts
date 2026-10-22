@@ -4,6 +4,7 @@ import { z } from "zod";
 import { renderAndCapture, type RenderResult } from "@/lib/render-capture";
 import { recordToolRun } from "@/lib/tool-findings";
 import { renderFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   url: z
@@ -28,6 +29,7 @@ export async function runRender(
   _prev: RenderState | null,
   formData: FormData,
 ): Promise<RenderState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     url: formData.get("url"),
     device: formData.get("device") || "desktop",

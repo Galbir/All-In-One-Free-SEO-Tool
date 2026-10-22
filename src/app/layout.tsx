@@ -72,9 +72,9 @@ export default async function RootLayout({
 
   const uiMode = await getUiMode();
 
-  // Server-side embed detection. The middleware sees ?embed=1 in the
+  // Server-side embed detection. The proxy sees ?embed=1 in the
   // request URL and forwards it as an x-embed header (see
-  // src/middleware.ts). When set, we render a minimal shell — no
+  // src/proxy.ts). When set, we render a minimal shell — no
   // sidebar, no top-bar, no floating widgets — so the per-client tool
   // drawer's iframe shows ONLY the tool content. No client script, no
   // flash, no late hydration.

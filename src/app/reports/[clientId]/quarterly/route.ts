@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema";
 import { generateQuarterlyStrategyPdf } from "@/lib/quarterly-strategy";
+import { canAccessClient } from "@/lib/client-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export async function GET(
   const id = Number(clientId);
   if (!Number.isFinite(id)) {
     return NextResponse.json({ error: "Invalid client id" }, { status: 400 });
+  }
+  if (!(await canAccessClient(id))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const [client] = await db

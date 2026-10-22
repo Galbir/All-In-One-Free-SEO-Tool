@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSetting, setSetting } from "@/lib/settings-store";
 import { closeBrowser, checkProxyHealth, type ProxyHealth } from "@/lib/browser-pool";
+import { guardAction } from "@/lib/action-guard";
 
 export type BrowserSettingsState =
   | { ok: true; message?: string }
@@ -12,6 +13,7 @@ export async function saveBrowserSettings(
   _prev: BrowserSettingsState | null,
   formData: FormData,
 ): Promise<BrowserSettingsState> {
+  await guardAction("settings", formData.get("clientId"));
   const concRaw = formData.get("maxConcurrency");
   const conc = concRaw ? Number(concRaw) : 4;
   if (!Number.isFinite(conc) || conc < 1 || conc > 16) {
@@ -101,6 +103,7 @@ export type ProxyHealthState =
   | { ok: false; error: string };
 
 export async function testProxies(): Promise<ProxyHealthState> {
+  await guardAction("settings");
   try {
     const results = await checkProxyHealth();
     return { ok: true, results };
@@ -110,6 +113,7 @@ export async function testProxies(): Promise<ProxyHealthState> {
 }
 
 export async function loadBrowserSettings() {
+  await guardAction("settings");
   const cookies =
     (await getSetting<StoredCookie[]>("browser.cookies")) ?? [];
   const cookiesText = cookies

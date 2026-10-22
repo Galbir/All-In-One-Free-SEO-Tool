@@ -12,6 +12,7 @@ import {
   type GscKeyword,
 } from "@/lib/google-data";
 import { isOpenTask } from "@/lib/task-status";
+import { guardAction } from "@/lib/action-guard";
 
 const severityRank = (s: string) =>
   ({ critical: 4, high: 3, medium: 2, low: 1 })[s] ?? 0;
@@ -39,6 +40,7 @@ export type ExecPreviewResult =
 export async function previewExecSummary(
   clientId: number,
 ): Promise<ExecPreviewResult> {
+  await guardAction("read", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0)
     return { ok: false, error: "Invalid client" };
 

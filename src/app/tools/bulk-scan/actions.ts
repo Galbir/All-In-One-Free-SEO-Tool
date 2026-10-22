@@ -4,6 +4,7 @@ import { runHealthCheck } from "@/app/tools/health-check/actions";
 import { saveSnapshot } from "@/lib/snapshots";
 import { recordToolRun } from "@/lib/tool-findings";
 import { bulkScanFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 export type BulkRow = {
   url: string;
@@ -44,6 +45,7 @@ export async function runBulkScan(opts: {
   urls: string;
   saveSnapshots?: boolean;
 }): Promise<BulkScanResult> {
+  await guardAction("edit");
   const startedAt = new Date();
   const urls = parseUrls(opts.urls);
   // Server-side enforcement: the UI says "max 25" but a determined caller

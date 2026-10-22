@@ -8,6 +8,7 @@ import {
   suggestViewportFix,
   type Suggestion,
 } from "@/lib/fix-suggestions";
+import { guardAction } from "@/lib/action-guard";
 
 const USER_AGENT =
   "Mozilla/5.0 (compatible; SeoToolBot/0.1; +https://localhost)";
@@ -60,6 +61,7 @@ export async function getFixSuggestions(
   pageUrl: string,
   issueType: string,
 ): Promise<FixResult> {
+  await guardAction("read");
   let context: FixContext;
   try {
     context = await fetchPageContext(pageUrl);

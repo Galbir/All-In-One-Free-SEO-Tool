@@ -6,6 +6,7 @@ import { db } from "@/db/client";
 import { clientMembers, users, type Role } from "@/db/schema";
 import { canManageTeam, currentUser, seesAllClients } from "@/lib/auth";
 import { createInvite, revokeInvite } from "@/lib/invites";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Every action here re-checks the caller's role server-side. The UI
@@ -28,6 +29,7 @@ export async function inviteMember(input: {
   email: string;
   role: Role;
 }): Promise<ActionResult & { link?: string }> {
+  await guardAction("settings");
   const me = await requireOwner();
   if ("error" in me) return { ok: false, error: me.error };
 
@@ -46,6 +48,7 @@ export async function inviteMember(input: {
 }
 
 export async function cancelInvite(id: number): Promise<ActionResult> {
+  await guardAction("settings");
   const me = await requireOwner();
   if ("error" in me) return { ok: false, error: me.error };
   revokeInvite(id);
@@ -57,6 +60,7 @@ export async function changeRole(
   userId: number,
   role: Role,
 ): Promise<ActionResult> {
+  await guardAction("settings");
   const me = await requireOwner();
   if ("error" in me) return { ok: false, error: me.error };
 
@@ -86,6 +90,7 @@ export async function setActive(
   userId: number,
   active: boolean,
 ): Promise<ActionResult> {
+  await guardAction("settings");
   const me = await requireOwner();
   if ("error" in me) return { ok: false, error: me.error };
 
@@ -117,6 +122,7 @@ export async function setClientAccess(
   userId: number,
   clientIds: number[],
 ): Promise<ActionResult> {
+  await guardAction("settings");
   const me = await requireOwner();
   if ("error" in me) return { ok: false, error: me.error };
 

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { checkMobileFriendliness, type MobileFriendlyCheck } from "@/lib/page-inspectors";
 import { recordToolRun } from "@/lib/tool-findings";
 import { mobileFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 const schema = z.object({
   url: z
@@ -22,6 +23,7 @@ export async function runMobile(
   _prev: MobileState | null,
   formData: FormData,
 ): Promise<MobileState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = schema.safeParse({ url: formData.get("url") });
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid URL" };

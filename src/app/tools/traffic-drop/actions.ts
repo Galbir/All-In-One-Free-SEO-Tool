@@ -19,6 +19,7 @@ import {
 } from "@/lib/traffic-drop";
 import { recordToolRun } from "@/lib/tool-findings";
 import { trafficDropFindings } from "@/lib/tool-finding-builders";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   siteUrl: z.string().trim().min(3),
@@ -32,6 +33,7 @@ export async function runDiagnostic(
   _prev: TrafficDropState | null,
   formData: FormData,
 ): Promise<TrafficDropState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     siteUrl: formData.get("siteUrl"),
   });

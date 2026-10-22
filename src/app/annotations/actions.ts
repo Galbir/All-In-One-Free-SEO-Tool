@@ -8,6 +8,7 @@ import {
   type AnnotationKind,
 } from "@/lib/annotations-store";
 import type { Annotation } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 export type CreateState =
   | { ok: true; id: number }
@@ -18,6 +19,7 @@ export async function addAnnotation(
   _prev: CreateState,
   formData: FormData,
 ): Promise<CreateState> {
+  await guardAction("edit", formData.get("clientId"));
   const label = String(formData.get("label") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const eventDateRaw = String(formData.get("eventDate") ?? "").trim();
@@ -68,6 +70,7 @@ export async function addAnnotation(
 }
 
 export async function removeAnnotation(id: number) {
+  await guardAction("edit");
   await deleteAnnotation(id);
   revalidatePath("/annotations");
 }
@@ -75,5 +78,6 @@ export async function removeAnnotation(id: number) {
 export async function fetchAnnotations(
   clientId?: number | null,
 ): Promise<Annotation[]> {
+  await guardAction("read", clientId);
   return listAllAnnotations({ clientId, limit: 300 });
 }

@@ -17,6 +17,7 @@ import {
   applyStackTemplatesForClient,
   siteFactsFor,
 } from "@/lib/apply-task-templates";
+import { guardAction } from "@/lib/action-guard";
 
 export type ImportablePair = {
   /** Stable key combining gsc + ga4 (used as checkbox value) */
@@ -44,6 +45,7 @@ export type ListImportableResult =
  * by domain heuristic, and surfaces a list ready for one-click import.
  */
 export async function listImportableProperties(): Promise<ListImportableResult> {
+  await guardAction("read");
   let gsc: GscProperty[] = [];
   let ga4: Ga4Property[] = [];
   try {
@@ -127,6 +129,7 @@ type Niche = "local" | "ecommerce" | "saas" | "blog" | "services";
 export async function importSelectedProperties(opts: {
   keys: string[];
 }): Promise<ImportResult> {
+  await guardAction("edit");
   const errors: string[] = [];
   let imported = 0;
   let skipped = 0;

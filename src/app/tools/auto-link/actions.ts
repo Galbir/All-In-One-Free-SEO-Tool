@@ -5,6 +5,7 @@ import {
   type AutoLinkSuggestion,
 } from "@/lib/content-ai-helpers";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type AutoLinkState =
   | { ok: true; suggestions: AutoLinkSuggestion[] }
@@ -35,6 +36,7 @@ export async function runAutoLink(
   _prev: AutoLinkState | null,
   formData: FormData,
 ): Promise<AutoLinkState> {
+  await guardAction("edit", formData.get("clientId"));
   const content = String(formData.get("content") ?? "").trim();
   const pagesRaw = String(formData.get("pages") ?? "").trim();
   if (!content) return { ok: false, error: "Paste content." };

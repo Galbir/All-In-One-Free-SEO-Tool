@@ -14,8 +14,10 @@ export const dynamic = "force-dynamic";
  * a sibling install of the same tool on a different folder running
  * on the same port — keeps multi-install setups sane.
  *
- * This endpoint exposes NO secrets — service tag, ISO time, install
- * path (already on the user's machine), PID. Safe for `*` CORS.
+ * The install path and PID are only for the launchers, which call from
+ * this machine. This route is public (it has to be — launchers have no
+ * cookie), so a remote caller gets the liveness answer without them: an
+ * absolute filesystem path is reconnaissance, not health.
  */
 function corsJson(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data), {
@@ -30,15 +32,19 @@ function corsJson(data: unknown, init?: ResponseInit): Response {
   });
 }
 
-export async function GET() {
-  return corsJson({
+export async function GET(req: Request) {
+  const base = {
     ok: true,
     service: "seo-tool",
     version: "v1",
     time: new Date().toISOString(),
-    installRoot: process.cwd(),
-    pid: process.pid,
-  });
+  };
+  // The Host header, not the request URL: Next builds the URL from the
+  // bound address, which is "localhost" even for a remote caller.
+  const host = (req.headers.get("host") ?? "").replace(/:\d+$/, "").toLowerCase();
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(host);
+  if (!local) return corsJson(base);
+  return corsJson({ ...base, installRoot: process.cwd(), pid: process.pid });
 }
 
 // Preflight handler — some browsers preflight even simple GETs when

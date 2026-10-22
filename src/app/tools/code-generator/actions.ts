@@ -6,6 +6,7 @@ import {
   TARGETS,
   type GeneratorTarget,
 } from "@/lib/code-generator-types";
+import { guardAction } from "@/lib/action-guard";
 
 export type CodeGenResult = {
   ok: true;
@@ -36,6 +37,7 @@ export async function generateCode(
   _prev: CodeGenState,
   formData: FormData,
 ): Promise<CodeGenState> {
+  await guardAction("edit", formData.get("clientId"));
   const targetId = String(formData.get("target") ?? "") as GeneratorTarget;
   const task = String(formData.get("task") ?? "").trim();
   const constraints = String(formData.get("constraints") ?? "").trim();

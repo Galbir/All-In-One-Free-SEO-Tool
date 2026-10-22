@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { clients, cwvReports } from "@/db/schema";
 import { scanCwv } from "@/lib/pagespeed";
+import { guardAction } from "@/lib/action-guard";
 
 export type RunCwvResult =
   | {
@@ -20,6 +21,7 @@ export async function runCwvScan(opts: {
   url: string;
   strategy: "mobile" | "desktop";
 }): Promise<RunCwvResult> {
+  await guardAction("edit", opts?.clientId);
   const url = opts.url.trim();
   if (!url) return { ok: false, error: "URL is required" };
   const normalised = /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -69,6 +71,7 @@ export async function runCwvScan(opts: {
 }
 
 export async function deleteCwvReport(id: number, clientId: number) {
+  await guardAction("edit", clientId);
   await db.delete(cwvReports).where(eq(cwvReports.id, id));
   revalidatePath(`/cwv/c/${clientId}`);
 }

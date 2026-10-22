@@ -4,6 +4,7 @@ import { clientMetricSnapshots, clients } from "@/db/schema";
 import {
   authenticateRequest,
   jsonError,
+  parseLimit,
   jsonOk,
   requireScope,
 } from "@/lib/api-auth";
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const clientId = url.searchParams.get("clientId");
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? 90), 365);
+  const limit = parseLimit(url.searchParams.get("limit"), 90, 365);
   const cid = clientId ? Number(clientId) : null;
 
   const q = db

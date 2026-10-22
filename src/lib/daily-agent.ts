@@ -9,8 +9,8 @@
  *   4. **AI suggestions** — generate up to 3 fresh suggestions per
  *      client (titles, internal links, content ideas) using the
  *      configured AI provider.
- *   5. **Auto-trigger rank checks for striking-distance keywords** —
- *      on Mondays only, to keep playwright load reasonable.
+ *   5. **Rank checks** — a rotating daily share of keywords with no
+ *      reading in 7 days, capped per day to keep Playwright load reasonable.
  *
  * Each step is wrapped so a failure in one doesn't block the next.
  */
@@ -20,8 +20,19 @@ import { db } from "@/db/client";
 import { audits, clients, keywords, keywordRankings } from "@/db/schema";
 import { getSetting, setSetting } from "./settings-store";
 import { logActivity } from "./activity";
+import { coverageNote, takeTurn } from "./rotation";
 
 const DAILY_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAILY_INTERVAL_MS;
+
+/**
+ * Keyword rank checks per daily run. Was 30 per WEEK across every client,
+ * Mondays only — an agency tracking 300 keywords saw each one about every
+ * ten weeks. Daily, with the 7-day freshness cutoff, a backlog drains at
+ * this rate and then the step mostly finds nothing to do. Settable as
+ * `automation.rank_sweep.daily_cap` for installs that get blocked.
+ */
+const DEFAULT_RANK_CHECKS_PER_DAY = 30;
 const STALE_AUDIT_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type DailyAgentReport = {
@@ -90,11 +101,19 @@ async function runDailyAgentBody(): Promise<DailyAgentReport> {
   await runStep(steps, "traffic.drop_alert", trafficDropAlertStep);
   await runStep(steps, "automations.generate", runScheduleGenerationStep);
   await runStep(steps, "automations.publish", runQueuePublishStep);
-  if (startedAt.getUTCDay() === 1) {
-    // Mondays only — heavier work
-    await runStep(steps, "rank.weekly_sweep", weeklyRankSweep);
+  await runStep(steps, "rank.sweep", rankSweep);
+  // The weekly block used to run only when this daily pass happened to
+  // start on a Monday (UTC). A desktop install that isn't open on
+  // Mondays never ran it, and because the daily pass drifts later each
+  // day, even an always-on server skipped a Monday whenever the start
+  // time crossed midnight. Now: whenever a week has passed since it last
+  // completed, whatever the weekday.
+  if (await weeklyBlockDue(startedAt)) {
     await runStep(steps, "ai_audit.weekly", weeklyAiAuditStep);
     await runStep(steps, "serp_features.weekly", weeklySerpFeatureStep);
+    await setSetting("automation.weekly.last_run_at", startedAt.getTime()).catch(
+      () => undefined,
+    );
   }
 
   const finishedAt = new Date();
@@ -238,9 +257,12 @@ async function refreshNewsFeeds(): Promise<string> {
 
 async function generateAiSuggestionsForAll(): Promise<string> {
   let count = 0;
+  let total = 0;
   try {
     const { runAgent } = await import("@/app/agent/actions");
-    const all = await db.select({ id: clients.id }).from(clients).limit(20);
+    const everyone = await db.select({ id: clients.id }).from(clients);
+    total = everyone.length;
+    const all = await takeTurn("ai_suggestions", everyone, 20);
     for (const c of all) {
       try {
         await runAgent(c.id);
@@ -252,7 +274,7 @@ async function generateAiSuggestionsForAll(): Promise<string> {
   } catch {
     return "agent module unavailable";
   }
-  return `ran agent for ${count} clients`;
+  return `ran agent for ${coverageNote(count, total, "clients")}`;
 }
 
 async function sendMentionDigestStep(): Promise<string> {
@@ -406,6 +428,13 @@ async function distillRecentFeedback(): Promise<string> {
  * "is there a recent reading for this keyword" answers both, and returns
  * each keyword once.
  */
+export async function weeklyBlockDue(now: Date): Promise<boolean> {
+  const last = await getSetting<number>("automation.weekly.last_run_at").catch(
+    () => null,
+  );
+  return typeof last !== "number" || now.getTime() - last >= WEEK_MS;
+}
+
 export function keywordsNeedingRankCheck(cutoff: Date, limit = 30) {
   return db
     .select({ id: keywords.id })
@@ -426,19 +455,35 @@ export function keywordsNeedingRankCheck(cutoff: Date, limit = 30) {
     .limit(limit);
 }
 
-async function weeklyRankSweep(): Promise<string> {
-  // Cap to 30 to be polite to whatever we are asking for positions.
+async function rankSweep(): Promise<string> {
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const stale = await keywordsNeedingRankCheck(cutoff, 30);
+  const capSetting = await getSetting<number>(
+    "automation.rank_sweep.daily_cap",
+  ).catch(() => null);
+  const cap =
+    typeof capSetting === "number" && capSetting > 0
+      ? Math.floor(capSetting)
+      : DEFAULT_RANK_CHECKS_PER_DAY;
+
+  // Every stale keyword, then a rotating turn of `cap` of them. Taking
+  // the first `cap` with no order meant keywords that could not be read
+  // (blocked, so no ranking row is written) were picked again every run
+  // and the rest were starved behind them.
+  const stale = await keywordsNeedingRankCheck(cutoff, 100_000);
   if (stale.length === 0) return "every keyword has a reading from the last 7 days";
+  const turn = await takeTurn("rank_sweep", stale, cap);
 
   const { checkRankAction } = await import("@/app/keywords/rank-actions");
   let done = 0;
   let failed = 0;
-  for (const k of stale) {
+  for (const k of turn) {
     try {
-      await checkRankAction(k.id);
-      done++;
+      // checkRankAction reports failure by returning { ok: false }, not
+      // by throwing — counting only throws reported a fully blocked
+      // sweep as "checked 30 keywords".
+      const r = await checkRankAction(k.id);
+      if (r && typeof r === "object" && "ok" in r && r.ok === false) failed++;
+      else done++;
     } catch {
       // Search engines block datacentre and residential IPs without
       // warning. Swallowing that and reporting only successes turns a
@@ -446,12 +491,18 @@ async function weeklyRankSweep(): Promise<string> {
       failed++;
     }
   }
+  const backlog =
+    stale.length > turn.length
+      ? ` (${stale.length - turn.length} more due — they take their turn on later days)`
+      : "";
   if (done === 0) {
-    return `could not check any of ${stale.length} keywords — the search page was unreadable (blocked, or the network refused)`;
+    throw new Error(
+      `could not check any of ${turn.length} keywords — the search page was unreadable (blocked, or the network refused)${backlog}`,
+    );
   }
   return failed > 0
-    ? `checked ${done} keywords, ${failed} could not be read`
-    : `checked ${done} keywords`;
+    ? `checked ${done} keywords, ${failed} could not be read${backlog}`
+    : `checked ${done} keywords${backlog}`;
 }
 
 // ============== New auto-steps ==============
@@ -465,10 +516,11 @@ async function robotsSnapshotStep(): Promise<string> {
   const all = await db.select({ id: clients.id, url: clients.url }).from(clients);
   if (all.length === 0) return "no clients";
   const { snapshotRobots } = await import("./robots-snapshots");
+  const turn = await takeTurn("robots_snapshot", all, 30);
   let changed = 0,
     unchanged = 0,
     failed = 0;
-  for (const c of all.slice(0, 30)) {
+  for (const c of turn) {
     try {
       const r = await snapshotRobots(c.url);
       if (!r.ok) failed += 1;
@@ -486,7 +538,7 @@ async function robotsSnapshotStep(): Promise<string> {
       failed += 1;
     }
   }
-  return `${changed} changed, ${unchanged} unchanged, ${failed} failed`;
+  return `${changed} changed, ${unchanged} unchanged, ${failed} failed — ${coverageNote(turn.length, all.length, "clients")}`;
 }
 
 /**
@@ -496,9 +548,10 @@ async function robotsSnapshotStep(): Promise<string> {
 async function sitemapHealthStep(): Promise<string> {
   const all = await db.select({ id: clients.id, url: clients.url }).from(clients);
   if (all.length === 0) return "no clients";
+  const turn = await takeTurn("sitemap_health", all, 30);
   let ok = 0,
     broken = 0;
-  for (const c of all.slice(0, 30)) {
+  for (const c of turn) {
     try {
       const u = new URL(c.url);
       const sitemap = `${u.origin}/sitemap.xml`;
@@ -535,7 +588,7 @@ async function sitemapHealthStep(): Promise<string> {
       broken += 1;
     }
   }
-  return `${ok} ok, ${broken} broken`;
+  return `${ok} ok, ${broken} broken — ${coverageNote(turn.length, all.length, "clients")}`;
 }
 
 /**
@@ -545,9 +598,10 @@ async function sitemapHealthStep(): Promise<string> {
 async function trafficDropAlertStep(): Promise<string> {
   const all = await db.select({ id: clients.id, url: clients.url, name: clients.name }).from(clients);
   if (all.length === 0) return "no clients";
+  const turn = await takeTurn("traffic_drop", all, 30);
   let alerted = 0,
     checked = 0;
-  for (const c of all.slice(0, 30)) {
+  for (const c of turn) {
     try {
       const { fetchGscPerformance } = await import("./google-oauth");
       const today = new Date();
@@ -593,7 +647,7 @@ async function trafficDropAlertStep(): Promise<string> {
       // GSC may not be connected for this client
     }
   }
-  return `${checked} checked, ${alerted} alerts`;
+  return `${checked} checked, ${alerted} alerts — ${coverageNote(turn.length, all.length, "clients")}`;
 }
 
 /**
@@ -605,34 +659,37 @@ async function weeklyAiAuditStep(): Promise<string> {
   if (all.length === 0) return "no clients";
   const { runAiSiteAudit } = await import("./ai-site-audit");
   const cutoff = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+
+  // Freshness first, cap second. The cap used to be applied to the first
+  // eight clients before the freshness skip, so clients 9 and up were
+  // never audited even in weeks when the first eight were all fresh.
+  const due: typeof all = [];
+  for (const c of all) {
+    const [recent] = await db
+      .select({ createdAt: audits.createdAt })
+      .from(audits)
+      .where(and(eq(audits.clientId, c.id), eq(audits.kind, "ai_full")))
+      // Most recent first — ascending order once made every client look
+      // stale and re-ran them weekly, burning credits.
+      .orderBy(desc(audits.createdAt))
+      .limit(1);
+    if (recent?.createdAt && recent.createdAt >= cutoff) continue;
+    due.push(c);
+  }
+  if (due.length === 0) return "every client has an AI audit from the last 6 days";
+
+  // Cap 8/week to keep AI cost reasonable, rotating so all get a turn.
+  const turn = await takeTurn("ai_audit_weekly", due, 8);
   let started = 0;
-  for (const c of all.slice(0, 8)) {
-    // Cap 8/week to keep AI cost reasonable
+  for (const c of turn) {
     try {
-      // Look up most-recent ai_full audit
-      const recent = await db
-        .select()
-        .from(audits)
-        .where(and(eq(audits.clientId, c.id), eq(audits.kind, "ai_full")))
-        // FIX: was orderBy(createdAt) which is ASC = oldest first. The
-        // freshness check downstream wanted "most recent" — without desc,
-        // it always saw an old audit and re-ran weekly, burning credits.
-        .orderBy(desc(audits.createdAt))
-        .limit(1);
-      if (
-        recent.length > 0 &&
-        recent[recent.length - 1].createdAt &&
-        recent[recent.length - 1].createdAt >= cutoff
-      ) {
-        continue;
-      }
       await runAiSiteAudit({ clientId: c.id, url: c.url });
       started += 1;
     } catch {
       // ignore one client's failure
     }
   }
-  return `ran ${started} weekly AI audits`;
+  return `ran ${started} weekly AI audits — ${coverageNote(turn.length, due.length, "clients due")}`;
 }
 
 /**
@@ -650,12 +707,13 @@ async function weeklySerpFeatureStep(): Promise<string> {
       clientUrl: clients.url,
     })
     .from(keywords)
-    .leftJoin(clients, eq(keywords.clientId, clients.id))
-    .limit(30);
+    .leftJoin(clients, eq(keywords.clientId, clients.id));
   if (all.length === 0) return "no keywords";
   const { captureSerpSnapshot } = await import("./serp-feature-tracker");
+  // It was always the same first 30 keywords; now they take turns.
+  const turn = await takeTurn("serp_features_weekly", all, 30);
   let captured = 0;
-  for (const k of all) {
+  for (const k of turn) {
     try {
       const r = await captureSerpSnapshot({
         query: k.query,
@@ -668,5 +726,5 @@ async function weeklySerpFeatureStep(): Promise<string> {
       // ignore
     }
   }
-  return `captured ${captured} SERP snapshots`;
+  return `captured ${captured} SERP snapshots — ${coverageNote(turn.length, all.length, "keywords")}`;
 }

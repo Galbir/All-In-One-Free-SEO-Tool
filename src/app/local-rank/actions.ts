@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema";
 import { checkLocalRank, type LocalRankResult } from "@/lib/local-rank";
+import { guardAction } from "@/lib/action-guard";
 
 export type RunLocalRankResult =
   | { ok: true; rows: LocalRankResult[] }
@@ -15,6 +16,7 @@ export async function runLocalRanks(opts: {
   cities: string[];
   country?: string;
 }): Promise<RunLocalRankResult> {
+  await guardAction("edit", opts?.clientId);
   if (!opts.query.trim()) return { ok: false, error: "Query is required" };
   if (opts.cities.length === 0)
     return { ok: false, error: "At least one city" };

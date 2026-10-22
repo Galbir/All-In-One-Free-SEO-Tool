@@ -25,14 +25,22 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = path.resolve(__dirname, "../..");
-const AGENT = path.join(ROOT, "src/lib/daily-agent.ts");
+// Everything the background scheduler calls into. The page monitor is
+// reached through report-mailer.ts, not daily-agent.ts — it called the raw
+// helper for months, hidden by a catch-all, because only the daily agent's
+// imports were scanned.
+const SCHEDULER_ENTRY_POINTS = [
+  "src/lib/daily-agent.ts",
+  "src/lib/report-mailer.ts",
+  "src/lib/scheduler.ts",
+].map((f) => path.join(ROOT, f));
 
-/** The action modules the daily agent pulls in, as repo-relative paths. */
+/** The action modules the scheduler pulls in, as repo-relative paths. */
 function actionModulesUsedByScheduler(): string[] {
-  const src = readFileSync(AGENT, "utf8");
+  const src = SCHEDULER_ENTRY_POINTS.map((f) => readFileSync(f, "utf8")).join("\n");
   const specifiers = [
-    ...src.matchAll(/import\(\s*["']@\/([^"']+)["']\s*\)/g),
-  ].map((m) => m[1]);
+    ...src.matchAll(/import\(\s*["'](@\/|\.\/)([^"']+)["']\s*\)/g),
+  ].map((m) => (m[1] === "./" ? `lib/${m[2]}` : m[2]));
 
   return [...new Set(specifiers)]
     .map((spec) => path.join(ROOT, "src", `${spec}.ts`))

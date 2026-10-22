@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { runBrowserAgent, type AgentResult } from "@/lib/browser-agent";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   startUrl: z
@@ -23,6 +24,7 @@ export async function runAgent(
   _prev: AgentState | null,
   formData: FormData,
 ): Promise<AgentState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({
     startUrl: formData.get("startUrl"),
     goal: formData.get("goal"),

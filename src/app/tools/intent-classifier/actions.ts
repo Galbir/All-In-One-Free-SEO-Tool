@@ -3,6 +3,7 @@
 import { callAI, lastAiFailure } from "@/lib/ai-call";
 import type { AiFailure } from "@/lib/ai-error";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type IntentRow = {
   query: string;
@@ -68,6 +69,7 @@ export async function runClassify(
   _prev: IntentState | null,
   formData: FormData,
 ): Promise<IntentState> {
+  await guardAction("edit", formData.get("clientId"));
   const raw = String(formData.get("queries") ?? "").trim();
   if (!raw) return { ok: false, error: "Paste at least one query." };
   const queries = Array.from(

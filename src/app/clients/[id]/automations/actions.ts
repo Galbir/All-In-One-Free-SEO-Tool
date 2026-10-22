@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { dailySchedules, type NewDailySchedule } from "@/db/schema";
+import { clients, dailySchedules, type NewDailySchedule } from "@/db/schema";
+import { isGbpLocationName } from "@/lib/gbp-api";
+import { guardAction } from "@/lib/action-guard";
 
 export type CreateScheduleState =
   | { ok: true; id: number }
@@ -14,6 +16,7 @@ export async function createSchedule(
   _prev: CreateScheduleState,
   formData: FormData,
 ): Promise<CreateScheduleState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const kind = String(formData.get("kind") ?? "");
   const cadenceDays = Math.max(1, Math.min(90, Number(formData.get("cadenceDays") ?? 1)));
@@ -21,7 +24,9 @@ export async function createSchedule(
   const autoPublishRaw = formData.get("autoPublish") === "on";
   const topicSeed = String(formData.get("topicSeed") ?? "").slice(0, 200);
   const tone = String(formData.get("tone") ?? "").slice(0, 200);
-  const gbpLocationName = String(formData.get("gbpLocationName") ?? "").slice(0, 200);
+  const gbpLocationName = String(formData.get("gbpLocationName") ?? "")
+    .trim()
+    .slice(0, 200);
   const postType = String(formData.get("postType") ?? "STANDARD");
   // Where the approved item ultimately goes:
   //   "local"     — save in the tool's queue; copy/paste yourself (no integration needed)
@@ -45,6 +50,30 @@ export async function createSchedule(
     )
   ) {
     return { ok: false, error: "Pick a kind." };
+  }
+
+  // The location becomes a URL path segment. A business name typed here
+  // produced `POST /v4/Mono Web/localPosts` and Google's HTML 404 (#43).
+  if (kind === "gbp_post" && gbpLocationName && !isGbpLocationName(gbpLocationName)) {
+    return {
+      ok: false,
+      error:
+        "The GBP location must look like accounts/…/locations/… — or leave it empty to use the client's listing.",
+    };
+  }
+  if (kind === "gbp_post" && destination === "gbp" && !gbpLocationName) {
+    const [client] = await db
+      .select({ gbpLocationName: clients.gbpLocationName })
+      .from(clients)
+      .where(eq(clients.id, clientId))
+      .limit(1);
+    if (!isGbpLocationName(client?.gbpLocationName)) {
+      return {
+        ok: false,
+        error:
+          'This client has no Business Profile listing chosen yet. Pick it under GBP → this client → Reviews ("Which listing"), then create the schedule.',
+      };
+    }
   }
 
   const config: Record<string, unknown> = { destination };
@@ -78,6 +107,7 @@ export async function toggleScheduleEnabled(
   scheduleId: number,
   clientId: number,
 ): Promise<void> {
+  await guardAction("edit", clientId);
   const [s] = await db
     .select()
     .from(dailySchedules)
@@ -100,6 +130,7 @@ export async function deleteSchedule(
   scheduleId: number,
   clientId: number,
 ): Promise<void> {
+  await guardAction("edit", clientId);
   await db
     .delete(dailySchedules)
     .where(
@@ -119,6 +150,7 @@ export async function runScheduleNow(
   scheduleId: number,
   clientId: number,
 ): Promise<{ ok: boolean; message: string }> {
+  await guardAction("edit", clientId);
   const [s] = await db
     .select()
     .from(dailySchedules)

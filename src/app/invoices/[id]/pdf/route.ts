@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, invoices } from "@/db/schema";
 import { getSetting } from "@/lib/settings-store";
-import { guardAdminRequest } from "@/lib/admin-auth";
+import { guardClientDocument } from "@/lib/admin-auth";
 import {
   invoiceTotals,
   formatMoney,
@@ -18,13 +18,6 @@ export async function GET(
   request: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  // Without this guard, any local process on the user's machine can
-  // enumerate /invoices/1/pdf -> /invoices/N/pdf and exfiltrate every
-  // invoice (client names, amounts, payment terms — financial data).
-  // The middleware only auth-gates when APP_PASSWORD is set; we need
-  // an explicit guard for the single-user-no-password default flow too.
-  const denied = guardAdminRequest(request);
-  if (denied) return denied;
   const { id } = await ctx.params;
   const invoiceId = Number(id);
   if (!Number.isFinite(invoiceId)) {
@@ -39,6 +32,11 @@ export async function GET(
   if (!invoice) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  // Without this guard, any local process on the user's machine could
+  // enumerate /invoices/1/pdf -> /invoices/N/pdf and exfiltrate every
+  // invoice; with accounts, a member could read other clients' invoices.
+  const denied = await guardClientDocument(request, invoice.clientId);
+  if (denied) return denied;
 
   const [client] = await db
     .select()

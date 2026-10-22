@@ -257,7 +257,7 @@ The home view when you log in. Multi-client overview, today's priorities, and wh
 ✅ Crawl history with diff between two audits
 
 ### 📊 Rank tracking & SERP analysis
-✅ Daily rank tracking — unlimited keywords  
+✅ Rank tracking — unlimited keywords; every keyword is re-checked at least weekly, in a rotating daily share (default 30 checks/day, adjustable) so a large list doesn't trip search-engine blocks  
 ✅ Mobile vs desktop tracked separately  
 ✅ City-level tracking (not just country) with map view  
 ✅ Competitor rank tracking on the same dashboard  
@@ -389,7 +389,7 @@ The home view when you log in. Multi-client overview, today's priorities, and wh
 ✅ **Orphan-page linking** — finds pages nothing on your site links to, picks the most relevant existing page, and links it using a phrase already in that article. No model invents the anchor text, so it can't write words you didn't. Body edits need review unless you turn autonomy all the way up  
 ✅ Guardrails: changes-per-run, changes-per-day, and a cooldown so it can't thrash the same page  
 ✅ Full audit trail — what it did, why, what it looked like before  
-✅ **Daily agent runs ~17 automated jobs per client every day** — rank checks, audit deltas, content decay, backlink scans, GBP monitoring, alert generation  
+✅ **Daily agent runs ~20 automated jobs every day** — rank checks, audit refreshes, robots/sitemap watch, traffic-drop alerts, competitor and brand monitoring, GBP checks, alert generation — plus a weekly block (AI audit, SERP features). Capped jobs rotate through every client, so the 31st client gets its turn too  
 ✅ **Nightly tool sweeps** — checks run on their own and keep what they find, so a finding outlives the browser tab you ran it in  
 ✅ Workflow builder (drag-and-drop trigger → conditions → actions)  
 ✅ Pre-built workflow templates  
@@ -468,17 +468,15 @@ Actively in development for the next 3-6 months. Want one of these sooner? Open 
 | Coming | What it does |
 |---|---|
 | 🛍️ **Shopify app** | One-click installer in Shopify App Store. Read/write product + collection meta, manage redirects, edit theme files, push JSON-LD schema. |
-| 🌐 **Browser extension** | Chrome/Edge companion. Capture data from any external SEO tool (GSC, GA4, PageSpeed UI) and pipe straight into your tool. "Send to my SEO tool" button on any page. |
-| 📱 **Mobile PWA** | Full progressive web app — installable on iOS/Android home screen, push notifications, offline rank reading, "tap to check ranking" on the go. |
+| 📱 **Full mobile app experience** | The app already installs as a PWA; next is push notifications, offline rank reading and "tap to check ranking" on the go. |
 | 🔗 **CRM integrations** (HubSpot, Pipedrive, Salesforce, Zoho) | Revenue-per-page reporting. Map organic traffic → leads → deals closed → revenue. Stakeholder reports finally show ROI in dollars, not just rankings. |
-| 🏗️ **Programmatic SEO toolkit** | Generate hundreds of location/feature/comparison pages from a CSV + template. The thing SaaS teams pay $5k/mo for. |
-| 🌍 **International / hreflang manager** | Multi-country, multi-language site management. Hreflang validator + generator + audit. |
-| 🤖 **GitHub PR generation** | For developer clients — tool finds an issue, generates the fix as a PR against their repo, you review + merge. |
-| 👥 **Team management + capacity planning** | Multi-user workspaces with roles. See who's overbooked. Auto-assign tasks by workload. |
 | 📊 **Stakeholder report variants** | Same data, different audiences. CEO sees revenue and ROI. CMO sees traffic and pipeline. CTO sees technical health. |
 | 🎙️ **Voice-to-task + meeting-notes integration** | Record a client call, tool transcribes + extracts action items into tasks. Fireflies / Otter integration. |
 | 🔌 **Plugin marketplace** | Community-built extensions. Ship your own audit rule, niche template, report block. |
-| 🧠 **Custom dashboards + chart annotations** | Drag-and-drop dashboards per client. Annotate spikes with notes (algorithm update, big campaign, etc). |
+| 🧠 **Custom dashboards** | Drag-and-drop dashboards per client. |
+| 🗂️ **Client archive** | Pause a client — off the lists and out of automations — without deleting its history. |
+
+**Already shipped** (these used to be listed here): browser extension (`extension/` — capture any page as a client, competitor, monitor or audit), programmatic SEO generator (**Tools → Programmatic SEO**), hreflang validator and generator, GitHub PR generation for developer clients, team accounts with roles and per-client access plus a capacity view, and chart annotations.
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full v2 + v3 roadmap (~30 items). Community feedback shapes prioritization — file an issue with the 🔮 label.
 
@@ -496,7 +494,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for the full v2 + v3 roadmap (~30 items). Comm
 | Local SEO | ✅ Full GBP integration | Limited | ✅ Add-on | ❌ | Basic |
 | AI Overview tracking | **✅** | Limited | Limited | ❌ | ❌ |
 | White-label reports | **✅ Free** | Higher tiers only | Higher tiers only | ❌ | ✅ |
-| Daily automation | **17 jobs / client** | Manual | Manual | Manual | Limited |
+| Daily automation | **~20 jobs, every client** | Manual | Manual | Manual | Limited |
 | Source available | **✅ Audit it yourself** | ❌ | ❌ | ✅ | ✅ |
 | Works offline | **✅ with Ollama** | ❌ | ❌ | ❌ | ❌ |
 | Tech-stack-aware fixes | **✅** | ❌ | ❌ | ❌ | ❌ |
@@ -513,7 +511,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for the full v2 + v3 roadmap (~30 items). Comm
    - 🆓 **Gemini / Groq / OpenRouter** — free tiers, just paste an API key  
    - 💰 OpenAI / Anthropic — paid, BYO key
 4. **Run your first audit** — click "Run audit" on any client
-5. **Watch the daily agent kick in 24h later** — 17 automated jobs per client
+5. **Watch the daily agent kick in 24h later** — ~20 automated jobs, every client
 
 ---
 

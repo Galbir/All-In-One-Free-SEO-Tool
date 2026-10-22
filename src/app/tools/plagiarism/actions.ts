@@ -2,6 +2,7 @@
 
 import { callAI } from "@/lib/ai-call";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 export type PlagiarismCheck = {
   ok: true;
@@ -22,6 +23,7 @@ export type PlagiarismResult = PlagiarismCheck | { ok: false; error: string };
 export async function checkPlagiarism(input: {
   content: string;
 }): Promise<PlagiarismResult> {
+  await guardAction("edit");
   const text = input.content.trim();
   if (!text) return { ok: false, error: "Paste content to analyze" };
   if (text.length < 100) {

@@ -8,6 +8,7 @@ import {
   captureAndStore,
   type KnowledgePanelData,
 } from "@/lib/knowledge-panel-monitor";
+import { guardAction } from "@/lib/action-guard";
 
 export type CaptureState =
   | {
@@ -23,6 +24,7 @@ export async function runKpCapture(
   _prev: CaptureState,
   formData: FormData,
 ): Promise<CaptureState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const queryRaw = String(formData.get("query") ?? "").trim();
   if (!Number.isFinite(clientId) || clientId <= 0)
@@ -47,6 +49,7 @@ export async function runKpCapture(
 }
 
 export async function listKpSnapshots(clientId: number, limit = 10) {
+  await guardAction("read", clientId);
   if (!Number.isFinite(clientId) || clientId <= 0) return [];
   return db
     .select()

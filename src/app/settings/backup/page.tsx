@@ -124,9 +124,22 @@ export default async function BackupPage() {
           <Download className="size-4" />
           Download data.db ({fmtBytes(dbSize)})
         </a>
+        <a
+          href="/api/backup?part=key"
+          className="ml-2 inline-flex h-10 items-center gap-2 rounded-md bg-white/5 px-4 text-sm ring-1 ring-inset ring-white/10 hover:bg-white/10"
+          download
+        >
+          <Download className="size-4" />
+          Download encryption key
+        </a>
         <p className="text-[10px] text-muted-foreground">
-          To move to a different computer: download this file, install on the
-          new machine, then upload it via Restore below. Done.
+          To move to a different computer: download both files, install on
+          the new machine, upload data.db via Restore below, and put the key
+          file in the data folder as <code>.seo-encryption-key</code>. Saved
+          API keys and Google sign-ins are encrypted with that key — restore
+          data.db without it and they have to be entered again. Keep the key
+          somewhere safe and separate: with both files, anyone can read
+          those credentials.
         </p>
       </section>
 

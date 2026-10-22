@@ -3,6 +3,7 @@
 import { fetchSiteMetadata, type SiteMetadata } from "@/lib/site-metadata";
 import { saveToolRun } from "@/lib/tool-runs";
 import { guardedFetch, guardUrl } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type DomainOverview = {
   ok: true;
@@ -53,6 +54,7 @@ const UA =
 export async function runDomainOverview(
   rawUrl: string,
 ): Promise<DomainOverviewResult> {
+  await guardAction("edit");
   const trimmed = rawUrl.trim();
   if (!trimmed) return { ok: false, error: "Paste a URL" };
   let url: string;

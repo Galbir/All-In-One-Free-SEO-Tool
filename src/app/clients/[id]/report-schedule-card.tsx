@@ -176,13 +176,11 @@ export function ReportScheduleCard({
                 {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={d}>
                     {d}
-                    {d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"}
+                    {d === 1 || d === 21 ? "st" : d === 2 || d === 22 ? "nd" : d === 3 || d === 23 ? "rd" : "th"}
                   </option>
                 ))}
+                <option value={31}>Last day of the month</option>
               </select>
-              <p className="text-[11px] text-muted-foreground/80">
-                Capped at 28 to handle short months consistently.
-              </p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -215,7 +213,7 @@ export function ReportScheduleCard({
               onChange={(e) => setHourOfDay(e.target.value)}
             />
             <p className="text-[11px] text-muted-foreground/80">
-              Local time (0-23). 9 = 9 AM.
+              0-23, in the workspace time zone (Settings → General). 9 = 9 AM.
             </p>
           </div>
         </div>
@@ -299,7 +297,9 @@ export function ReportScheduleCard({
               report ·{" "}
               <strong className="text-foreground">
                 {schedule.frequency === "monthly"
-                  ? `monthly on day ${schedule.dayOfMonth}`
+                  ? schedule.dayOfMonth && schedule.dayOfMonth > 28
+                    ? "monthly on the last day"
+                    : `monthly on day ${schedule.dayOfMonth}`
                   : `weekly on ${dowLabels[schedule.dayOfWeek ?? 1]}`}
               </strong>{" "}
               at {schedule.hourOfDay}:00

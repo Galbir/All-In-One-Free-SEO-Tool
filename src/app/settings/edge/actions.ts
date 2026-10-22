@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { rotateEdgeToken } from "@/lib/edge-token";
 import { logActivity } from "@/lib/activity";
+import { guardAction } from "@/lib/action-guard";
 
 /**
  * Mint a new edge token and hand it back once.
@@ -15,6 +16,7 @@ import { logActivity } from "@/lib/activity";
 export async function rotateEdgeTokenAction(): Promise<
   { ok: true; token: string } | { ok: false; error: string }
 > {
+  await guardAction("settings");
   try {
     const token = await rotateEdgeToken();
     await logActivity({

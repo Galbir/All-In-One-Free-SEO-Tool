@@ -348,13 +348,13 @@ export function SchedulesEditor({
                 </span>
                 <input
                   name="gbpLocationName"
-                  placeholder="accounts/12345/locations/67890"
+                  placeholder="Leave empty to use the client’s listing"
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 />
                 <span className="text-[10px] text-muted-foreground">
-                  From the GBP API. Find it on the /gbp page under this
-                  client, or via the Google Business Profile API
-                  documentation.
+                  Optional override (accounts/…/locations/…). By default
+                  posts go to the listing chosen on this client’s GBP →
+                  Reviews page.
                 </span>
               </label>
               <label className="space-y-1 text-xs">
@@ -365,8 +365,8 @@ export function SchedulesEditor({
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 >
                   <option value="STANDARD">Standard update</option>
-                  <option value="EVENT">Event</option>
-                  <option value="OFFER">Offer</option>
+                  <option value="EVENT">Event (posts as a standard update for now)</option>
+                  <option value="OFFER">Offer (posts as a standard update for now)</option>
                 </select>
               </label>
             </>

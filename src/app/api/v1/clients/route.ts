@@ -4,6 +4,7 @@ import { clients } from "@/db/schema";
 import {
   authenticateRequest,
   jsonError,
+  parseLimit,
   jsonOk,
   requireScope,
 } from "@/lib/api-auth";
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
     return jsonError(403, "Read scope required.");
 
   const url = new URL(req.url);
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? 50), 200);
+  const limit = parseLimit(url.searchParams.get("limit"), 50, 200);
 
   const rows = await db
     .select({

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { generateSchemaFromUrl, type SchemaGenResult } from "@/lib/ai-schema-gen";
 import { saveToolRun } from "@/lib/tool-runs";
+import { guardAction } from "@/lib/action-guard";
 
 const inputSchema = z.object({
   url: z
@@ -21,6 +22,7 @@ export async function runAiSchema(
   _prev: AiSchemaState | null,
   formData: FormData,
 ): Promise<AiSchemaState> {
+  await guardAction("edit", formData.get("clientId"));
   const parsed = inputSchema.safeParse({ url: formData.get("url") });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid URL" };

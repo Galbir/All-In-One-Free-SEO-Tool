@@ -5,12 +5,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { aiPreferences } from "@/db/schema";
 import { distillPreferences } from "@/lib/ai-learn";
+import { guardAction } from "@/lib/action-guard";
 
 export async function runDistill(): Promise<{
   ok: boolean;
   ruleCount: number;
   error?: string;
 }> {
+  await guardAction("settings");
   try {
     const r = await distillPreferences();
     revalidatePath("/settings/ai-learning");
@@ -21,6 +23,7 @@ export async function runDistill(): Promise<{
 }
 
 export async function togglePreference(id: number): Promise<void> {
+  await guardAction("settings");
   if (!Number.isFinite(id) || id <= 0) return;
   const [row] = await db
     .select({ active: aiPreferences.active })
@@ -36,6 +39,7 @@ export async function togglePreference(id: number): Promise<void> {
 }
 
 export async function deletePreference(id: number): Promise<void> {
+  await guardAction("settings");
   if (!Number.isFinite(id) || id <= 0) return;
   await db.delete(aiPreferences).where(eq(aiPreferences.id, id));
   revalidatePath("/settings/ai-learning");

@@ -12,6 +12,7 @@ import {
   seoResources,
   tasks,
 } from "@/db/schema";
+import { guardAction } from "@/lib/action-guard";
 
 export type SearchHit = {
   type:
@@ -130,6 +131,7 @@ export type SearchResults = {
 };
 
 export async function search(rawQuery: string): Promise<SearchResults> {
+  await guardAction("edit");
   const q = rawQuery.trim();
   if (q.length < 1) return { query: q, hits: [] };
   const pattern = `%${q}%`;

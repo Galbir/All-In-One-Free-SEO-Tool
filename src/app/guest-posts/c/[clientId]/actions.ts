@@ -10,6 +10,7 @@ import {
 } from "@/lib/guest-post-writer";
 import { getGuestPostSiteById } from "@/lib/guest-post-sites";
 import { callAI } from "@/lib/ai-call";
+import { guardAction } from "@/lib/action-guard";
 
 export type GenerateState =
   | {
@@ -31,6 +32,7 @@ export async function generateGuestPost(
   _prev: GenerateState,
   formData: FormData,
 ): Promise<GenerateState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const siteId = String(formData.get("siteId") ?? "");
   const topic = String(formData.get("topic") ?? "").trim();
@@ -111,6 +113,7 @@ export async function updateDraftMarkdown(
   draftId: number,
   formData: FormData,
 ) {
+  await guardAction("edit", formData.get("clientId"));
   const md = String(formData.get("markdown") ?? "");
   const [d] = await db
     .select({ clientId: guestPostDrafts.clientId, siteId: guestPostDrafts.siteId, targetKeyword: guestPostDrafts.targetKeyword })
@@ -134,6 +137,7 @@ export async function setDraftStatus(
   status: "draft" | "pitched" | "accepted" | "published" | "rejected",
   liveUrl?: string,
 ) {
+  await guardAction("edit");
   const [d] = await db
     .select({ clientId: guestPostDrafts.clientId })
     .from(guestPostDrafts)
@@ -160,6 +164,7 @@ export async function setDraftStatus(
 }
 
 export async function setDraftLiveUrl(draftId: number, formData: FormData) {
+  await guardAction("edit", formData.get("clientId"));
   const url = String(formData.get("liveUrl") ?? "").trim();
   const [d] = await db
     .select({ clientId: guestPostDrafts.clientId })
@@ -180,6 +185,7 @@ export async function setDraftLiveUrl(draftId: number, formData: FormData) {
 }
 
 export async function deleteDraft(draftId: number) {
+  await guardAction("edit");
   const [d] = await db
     .select({ clientId: guestPostDrafts.clientId })
     .from(guestPostDrafts)
@@ -191,6 +197,7 @@ export async function deleteDraft(draftId: number) {
 }
 
 export async function listDraftsForClient(clientId: number) {
+  await guardAction("read", clientId);
   return db
     .select()
     .from(guestPostDrafts)
@@ -215,6 +222,7 @@ export async function suggestGuestPostTitles(
   _prev: SuggestTitlesState,
   formData: FormData,
 ): Promise<SuggestTitlesState> {
+  await guardAction("edit", formData.get("clientId"));
   const clientId = Number(formData.get("clientId"));
   const siteId = String(formData.get("siteId") ?? "");
   const targetKeyword = String(formData.get("targetKeyword") ?? "").trim();

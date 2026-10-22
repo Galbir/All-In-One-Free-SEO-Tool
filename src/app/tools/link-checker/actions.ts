@@ -2,6 +2,7 @@
 
 import { saveToolRun } from "@/lib/tool-runs";
 import { guardedFetch } from "@/lib/url-guard";
+import { guardAction } from "@/lib/action-guard";
 
 export type AnalyzedLink = {
   href: string;
@@ -57,6 +58,7 @@ function decode(s: string): string {
 }
 
 export async function analyzeLinks(rawUrl: string): Promise<LinkAnalysisResult> {
+  await guardAction("edit");
   const trimmed = rawUrl.trim();
   if (!trimmed) return { ok: false, error: "Paste a URL" };
   let url: string;
