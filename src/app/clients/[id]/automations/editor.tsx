@@ -538,7 +538,7 @@ export function SchedulesEditor({
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 >
                   <option value="STANDARD">Standard update</option>
-                  <option value="EVENT">Event</option>
+                  <option value="EVENT">Event (posts as a standard update for now)</option>
                   <option value="OFFER">
                     Offer (&quot;View offer&quot; links to the product)
                   </option>
