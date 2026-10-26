@@ -1219,3 +1219,24 @@ export async function listSitemaps(opts: { clientId: number }): Promise<McpToolR
     return { ok: false, error: `Search Console sitemaps query failed: ${(err as Error).message}` };
   }
 }
+
+/** Google Keyword Planner ideas for a client (needs Google Ads connected). */
+export async function getKeywordIdeas(opts: {
+  clientId: number;
+  limit?: number;
+  refresh?: boolean;
+}): Promise<McpToolResult> {
+  const { getAdsStatus, discoverClientKeywords } = await import("../google-ads");
+  if (!(await getAdsStatus()).ready) {
+    return { ok: false, error: "Google Ads is not connected (Settings → Google)." };
+  }
+  try {
+    const ideas = await discoverClientKeywords(opts.clientId, {
+      refresh: opts.refresh,
+      limit: Math.min(opts.limit ?? 30, 100),
+    });
+    return { ok: true, data: { ideas } };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}

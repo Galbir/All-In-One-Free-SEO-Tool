@@ -101,6 +101,7 @@ async function runDailyAgentBody(): Promise<DailyAgentReport> {
   await runStep(steps, "traffic.drop_alert", trafficDropAlertStep);
   await runStep(steps, "automations.generate", runScheduleGenerationStep);
   await runStep(steps, "automations.publish", runQueuePublishStep);
+  await runStep(steps, "planner.discover", plannerDiscoverStep);
   await runStep(steps, "rank.sweep", rankSweep);
   // The weekly block used to run only when this daily pass happened to
   // start on a Monday (UTC). A desktop install that isn't open on
@@ -545,6 +546,45 @@ async function robotsSnapshotStep(): Promise<string> {
  * Daily sitemap health probe — try to fetch /sitemap.xml for every client,
  * count entries, alert on parse failure or sudden drop.
  */
+/**
+ * Google Keyword Planner, when Google Ads is connected: refresh each
+ * client's ideas and start tracking the best few, so the keyword list
+ * grows by itself until the client has a working set. Skipped quietly
+ * when Ads is not connected.
+ */
+const PLANNER_TRACK_CAP = 40;
+const PLANNER_NEW_PER_RUN = 3;
+
+async function plannerDiscoverStep(): Promise<string> {
+  const { getAdsStatus, discoverClientKeywords, trackKeywords } = await import(
+    "./google-ads"
+  );
+  if (!(await getAdsStatus()).ready) return "Google Ads not connected";
+  const all = await db.select({ id: clients.id }).from(clients);
+  if (all.length === 0) return "no clients";
+  const turn = await takeTurn("planner_discover", all, 10);
+  let added = 0;
+  for (const c of turn) {
+    try {
+      const [{ n }] = await db
+        .select({ n: sql<number>`count(*)` })
+        .from(keywords)
+        .where(eq(keywords.clientId, c.id));
+      const ideas = await discoverClientKeywords(c.id, { refresh: true });
+      if (n >= PLANNER_TRACK_CAP) continue;
+      added += await trackKeywords(
+        c.id,
+        ideas.slice(0, PLANNER_NEW_PER_RUN).map((i) => i.text),
+      );
+    } catch (err) {
+      console.warn(
+        `[daily-agent] planner discover failed for client ${c.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+  return `${turn.length} clients refreshed, ${added} keywords added`;
+}
+
 async function sitemapHealthStep(): Promise<string> {
   const all = await db.select({ id: clients.id, url: clients.url }).from(clients);
   if (all.length === 0) return "no clients";

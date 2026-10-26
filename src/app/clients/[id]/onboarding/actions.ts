@@ -163,6 +163,7 @@ export type DiscoverState =
       ok: true;
       keywords: DiscoveredKeyword[];
       gscRowsUsed: number;
+      plannerUsed: number;
       seedsUsed: string[];
       /** What reading the site produced, so the user can see it happened. */
       siteRead: { pagesRead: number; termsFound: number; seeds: string[]; note?: string };
@@ -227,6 +228,7 @@ export async function runKeywordDiscovery(
     ok: true,
     keywords: result.keywords,
     gscRowsUsed: result.gscRowsUsed,
+    plannerUsed: result.plannerUsed,
     seedsUsed: result.seedsUsed,
     siteRead: result.siteRead,
   };

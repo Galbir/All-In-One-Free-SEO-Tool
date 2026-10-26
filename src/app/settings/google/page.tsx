@@ -136,7 +136,16 @@ GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-…`}</pre>
           >
             google-ads-api
           </a>{" "}
-          library.
+          library by Opteo, following the approach of{" "}
+          <a
+            className="underline"
+            href="https://github.com/lionkiii/google-searchconsole-mcp"
+            target="_blank"
+            rel="noreferrer"
+          >
+            gsc-mcp
+          </a>
+          .
         </p>
         <GoogleAdsForm
           hasToken={ads.hasToken}
