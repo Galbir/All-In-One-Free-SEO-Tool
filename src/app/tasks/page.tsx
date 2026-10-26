@@ -22,6 +22,7 @@ import { NewTaskTrigger } from "./new-task-form";
 import { TasksBulkList, type BulkTask } from "./bulk-list";
 import { KanbanBoard } from "./kanban-board";
 import { LiveRefresh } from "./live-refresh";
+import { PrBar } from "./pr-bar";
 import { QueueBar } from "./queue-bar";
 import { queueFor } from "@/lib/task-chat/queue";
 import { isOpenTask } from "@/lib/task-status";
@@ -75,7 +76,7 @@ export default async function TasksPage({
     .orderBy(desc(tasks.createdAt));
 
   const allClients = await db
-    .select({ id: clients.id, name: clients.name, localPath: clients.localPath })
+    .select({ id: clients.id, name: clients.name, localPath: clients.localPath, githubRepo: clients.githubRepo })
     .from(clients)
     .where(await clientScope())
     .orderBy(clients.name);
@@ -203,6 +204,8 @@ export default async function TasksPage({
           queue={queueView}
         />
       )}
+
+      {selected?.githubRepo && <PrBar clientId={selected.id} clientName={selected.name} />}
 
       {filtered.length === 0 ? (
         <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 px-6 py-16 text-center backdrop-blur-md">

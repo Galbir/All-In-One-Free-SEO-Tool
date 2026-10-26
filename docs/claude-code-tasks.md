@@ -35,6 +35,12 @@ Install and sign in to the [`claude`](https://docs.claude.com/en/docs/claude-cod
 
 Never allowed, whatever the mode: force-push, pushing to the base branch, deleting branches, `git reset`, `git clean`. The allow and deny lists are in `src/lib/task-chat/workflow.ts`.
 
+### Merging the pull requests from the app
+
+With `Open a pull request`, **Tasks** lists the open pull requests Claude made for the client (branches `seo/task-<id>-…`) under the queue bar, each with its check state and a **Merge** button, plus **Merge all (N)**. A pull request is merged (squash, branch deleted) only when it has no conflicts, is not a draft, and every check is green; the state is read again right before each merge. "Merge all" goes oldest first and reports any that no longer merge after the base branch moved.
+
+Why this helps with hosting builds: Cloudflare Pages (or Vercel) builds a preview for every pushed branch and a production build for every push to the base branch. Merging when you decide, instead of merging after each task, keeps production builds to the moments you choose. Each merge still triggers one production build; to build only once, merge fewer, larger changes, or limit preview builds to selected branches in the host's settings.
+
 ### Model and effort
 
 At the bottom of every chat there are two lists: the **model** (Claude's default, Fable, Opus, Sonnet, Haiku) and the **effort** (default, low, medium, high, xhigh, max). They are saved for the whole workspace and apply from the next message; a turn already running is not changed. "Default" passes nothing, so Claude Code uses your own settings.
