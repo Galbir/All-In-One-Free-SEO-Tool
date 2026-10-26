@@ -13,7 +13,7 @@ On **Clients → Edit**:
 | Local project folder | Where Claude works. Chats start in this folder. |
 | GitHub repository | `owner/name`. Pick from your repos (uses the `gh` sign-in; the app never stores a token). |
 | Base branch | The branch pull requests target (default `main`). |
-| Pull-request mode | `Edit files only`, `Open a pull request`, or `Open a pull request and merge it`. |
+| Pull-request mode | `Edit files only`, `Open a pull request`, or `Open and merge`. |
 
 Install and sign in to the [`claude`](https://docs.claude.com/en/docs/claude-code) CLI and, for pull requests, the [`gh`](https://cli.github.com) CLI (`gh auth login`).
 
@@ -31,7 +31,7 @@ Install and sign in to the [`claude`](https://docs.claude.com/en/docs/claude-cod
 | --- | --- |
 | Edit files only | Changes the files. Git is left alone. |
 | Open a pull request | Branch `seo/task-<id>-…`, commit, push, `gh pr create`. Stops there for you to review. |
-| Open a pull request and merge it | The same, then waits for the checks and merges (`--squash --delete-branch`) only when local checks and every PR check are green. After two failed attempts it leaves the PR open and says why. |
+| Open and merge | The same, then waits for the checks and merges (`--squash --delete-branch`) only when local checks and every PR check are green. After two failed attempts it leaves the PR open and says why. |
 
 Never allowed, whatever the mode: force-push, pushing to the base branch, deleting branches, `git reset`, `git clean`. The allow and deny lists are in `src/lib/task-chat/workflow.ts`.
 
