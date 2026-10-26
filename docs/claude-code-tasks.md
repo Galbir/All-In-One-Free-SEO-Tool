@@ -63,7 +63,7 @@ Without a GitHub repo in a pull-request mode, Claude edits the files directly; t
 
 ## What Claude may run
 
-Headless chats cannot ask for permission, so anything not listed is refused. Allowed: reading and editing files in the folder, `git status/diff/log`, the project's `build`/`lint`/`test` scripts, `WebFetch`, `WebSearch`, the `seo-tool` MCP, and (per mode) the git and `gh pr` commands above. Chats are told not to add `Co-Authored-By` or "Generated with" lines to commits and pull requests.
+Headless chats cannot ask for permission, so anything not listed is refused. Allowed: reading and editing files in the folder, `git status/diff/log`, the project's `build`/`lint`/`test` scripts, `WebFetch`, `WebSearch`, the `seo-tool` MCP, and (per mode) the git and `gh pr` commands above. Documents that are not part of the site (email drafts, prospect lists, reports) are written to `.seo-drafts/task-<id>/` next to the app, not into the client's repository, so they are never committed or deployed. Chats are told not to add `Co-Authored-By` or "Generated with" lines to commits and pull requests.
 
 ## Troubleshooting
 

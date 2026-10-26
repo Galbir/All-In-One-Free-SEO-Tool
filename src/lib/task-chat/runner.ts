@@ -18,6 +18,7 @@
  * nothing the browser sent is ever part of a command line.
  */
 
+import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -55,6 +56,20 @@ const SYSTEM_NOTE =
   "When the task is finished, call update_task on the seo-tool MCP to mark it done. " +
   "If a seo-tool call answers 429 (too many requests), wait the number of seconds it names, then try the same call again; do not give up on the task. " +
   "Never add Co-Authored-By trailers, \"Generated with\" lines or any other attribution to commits, pull requests or files.";
+
+/**
+ * Some tasks produce work that is not part of the site: email drafts, lists
+ * of link prospects, reports, research notes. Those must not land in the
+ * client's repository, where they would be committed, built and deployed
+ * (previews included).
+ */
+function workingFilesNote(taskId: number): string {
+  return (
+    `If the task's result is a document and not a change to the site (email drafts, prospect lists, reports, research notes, audits), ` +
+    `write it to ${path.join(DRAFTS_DIR, `task-${taskId}`)} and not into the project folder, and never commit it. ` +
+    `Only files that belong to the site itself go in the project. Tell the person where the file is when you finish.`
+  );
+}
 
 const TURN_TIMEOUT_MS = 30 * 60_000;
 
@@ -178,7 +193,9 @@ export function startTurn(
     "--add-dir",
     DRAFTS_DIR,
     "--append-system-prompt",
-    [SYSTEM_NOTE, workflowNote(workflow, taskId)].filter(Boolean).join("\n\n"),
+    [SYSTEM_NOTE, workingFilesNote(taskId), workflowNote(workflow, taskId)]
+      .filter(Boolean)
+      .join("\n\n"),
     ...(chat?.sessionId ? ["--resume", chat.sessionId] : []),
   ];
 
