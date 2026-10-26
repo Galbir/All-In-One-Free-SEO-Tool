@@ -257,16 +257,24 @@ async function generateForSchedule(
         kws,
       );
       if (!products) return null;
-      return generateBlogProductPost({
-        client,
-        tone,
-        topicSeed,
-        products,
-        keywords: kws,
-        buttons: [buttonText, buttonText2],
-      });
+      return withBlogExportMeta(
+        await generateBlogProductPost({
+          client,
+          tone,
+          topicSeed,
+          products,
+          keywords: kws,
+          buttons: [buttonText, buttonText2],
+        }),
+        kws,
+        cfg,
+      );
     }
-    return generateBlogDraft({ client, topicSeed, tone, context });
+    return withBlogExportMeta(
+      await generateBlogDraft({ client, topicSeed, tone, context }),
+      kws,
+      cfg,
+    );
   }
   if (s.kind === "gbp_post") {
     const maxChars = clampGbpMaxChars(cfg.max_chars);
@@ -312,6 +320,24 @@ async function generateForSchedule(
     return generateChecklist({ client, context });
   }
   return null;
+}
+
+/** Keywords + AI brief ride along on the queue item for the "Download .md for AI" export. */
+function withBlogExportMeta(
+  item: GeneratedItem | null,
+  keywords: string[],
+  cfg: Record<string, unknown>,
+): GeneratedItem | null {
+  if (!item) return item;
+  const brief = typeof cfg.ai_brief === "string" ? cfg.ai_brief.trim() : "";
+  return {
+    ...item,
+    payload: {
+      ...item.payload,
+      keywords,
+      ...(brief ? { aiBrief: brief } : {}),
+    },
+  };
 }
 
 async function generateBlogDraft(opts: {

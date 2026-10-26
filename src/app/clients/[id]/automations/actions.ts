@@ -29,6 +29,7 @@ const FORM_CONFIG_KEYS = [
   "max_chars",
   "cta_type",
   "offer_coupon",
+  "ai_brief",
 ] as const;
 
 type ParsedSchedule = {
@@ -51,6 +52,7 @@ async function parseScheduleForm(
   const autoPublishRaw = formData.get("autoPublish") === "on";
   const topicSeed = String(formData.get("topicSeed") ?? "").slice(0, 200);
   const tone = String(formData.get("tone") ?? "").slice(0, 200);
+  const aiBrief = String(formData.get("aiBrief") ?? "").trim().slice(0, 2000);
   const gbpLocationName = String(formData.get("gbpLocationName") ?? "")
     .trim()
     .slice(0, 200);
@@ -206,6 +208,7 @@ async function parseScheduleForm(
   if (buttonText2 && kind === "blog_draft") config.button_text_2 = buttonText2;
   if (topicSeed) config.topic_seed = topicSeed;
   if (tone) config.tone = tone;
+  if (aiBrief && kind === "blog_draft") config.ai_brief = aiBrief;
   if (kind === "gbp_post") {
     if (gbpLocationName) config.gbp_location_name = gbpLocationName;
     config.post_type = postType;

@@ -33,6 +33,7 @@ import {
   rejectQueueItem,
 } from "./actions";
 import type { PublishQueueItem } from "@/db/schema";
+import { buildBlogMarkdown, htmlToMarkdown, slugify } from "@/lib/blog-export";
 
 type Kind = PublishQueueItem["kind"];
 type Status = PublishQueueItem["status"];
@@ -239,30 +240,6 @@ function QueueRow({
     });
   }
 
-  function htmlToMarkdown(html: string): string {
-    // Tiny converter — handles the elements our blog-draft generator emits.
-    // Good enough for paste-into-Medium / paste-into-Notion / paste-into-WP
-    // visual editor. Anything weirder gets pasted as HTML using the Copy
-    // body button.
-    let md = html;
-    md = md.replace(/<\s*br\s*\/?\s*>/gi, "\n");
-    md = md.replace(/<\/?(strong|b)>/gi, "**");
-    md = md.replace(/<\/?(em|i)>/gi, "_");
-    md = md.replace(/<\/?code>/gi, "`");
-    md = md.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "\n## $1\n");
-    md = md.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "\n### $1\n");
-    md = md.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n\n");
-    md = md.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n");
-    md = md.replace(/<\/?(ul|ol|blockquote)[^>]*>/gi, "\n");
-    md = md.replace(
-      /<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
-      "[$2]($1)",
-    );
-    md = md.replace(/<[^>]+>/g, ""); // strip anything else
-    md = md.replace(/\n{3,}/g, "\n\n").trim();
-    return md;
-  }
-
   function copyAsMarkdown() {
     const title = item.title ? `# ${item.title}\n\n` : "";
     navigator.clipboard
@@ -270,22 +247,27 @@ function QueueRow({
       .then(() => toast.success("Copied as Markdown."));
   }
 
-  function downloadAs(format: "md" | "html") {
-    const title = item.title ?? "draft";
-    const filename = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60);
+  function downloadAs(format: "md" | "md-ai" | "html") {
+    const filename = slugify(item.title ?? "draft");
     let content: string;
     let mime: string;
     let ext: string;
-    if (format === "md") {
-      content = (item.title ? `# ${item.title}\n\n` : "") + htmlToMarkdown(item.body ?? "");
+    if (format === "md" || format === "md-ai") {
+      content = buildBlogMarkdown(
+        {
+          title: item.title,
+          body: item.body,
+          payload: item.payloadJson,
+          date: item.generatedAt,
+        },
+        { forAi: format === "md-ai" },
+      );
       mime = "text/markdown";
       ext = "md";
     } else {
-      content = `<!doctype html><meta charset="utf-8"><title>${item.title ?? ""}</title>\n${item.title ? `<h1>${item.title}</h1>\n` : ""}${item.body ?? ""}`;
+      content = `<!doctype html><meta charset="utf-8"><title>${item.title ?? ""}</title>
+${item.title ? `<h1>${item.title}</h1>
+` : ""}${item.body ?? ""}`;
       mime = "text/html";
       ext = "html";
     }
@@ -491,6 +473,15 @@ function QueueRow({
                 >
                   <Download className="mr-1.5 size-3" />
                   .md
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadAs("md-ai")}
+                  className="inline-flex h-9 items-center rounded-md bg-violet-500/15 px-3 text-xs text-violet-200 ring-1 ring-inset ring-violet-500/30 hover:bg-violet-500/25"
+                  title="Markdown with frontmatter (title, description, slug, keywords) and a brief telling an AI how to enrich the article — for Astro, Next.js and other static sites"
+                >
+                  <Download className="mr-1.5 size-3" />
+                  .md for AI
                 </button>
                 <button
                   type="button"

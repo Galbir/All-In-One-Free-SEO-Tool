@@ -199,6 +199,7 @@ export function SchedulesEditor({
 type ScheduleConfig = {
   topic_seed?: string;
   tone?: string;
+  ai_brief?: string;
   destination?: string;
   gbp_location_name?: string;
   post_type?: string;
@@ -452,6 +453,26 @@ function ScheduleForm({
           className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
         />
       </label>
+
+      {selectedKind === "blog_draft" && (
+        <label className="space-y-1 text-xs">
+          <span className="text-muted-foreground">
+            AI brief for the .md export (optional)
+          </span>
+          <textarea
+            name="aiBrief"
+            rows={3}
+            maxLength={2000}
+            defaultValue={cfg.ai_brief ?? ""}
+            placeholder="Leave blank to use the default: expand sections, add an FAQ, internal link and image placeholders, keep the keywords."
+            className="w-full rounded-md border border-white/10 bg-card/60 px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+          <span className="text-[10px] text-muted-foreground">
+            Written into the &quot;Download .md for AI&quot; file so another AI
+            knows how to enrich the draft (Astro, Next.js, any static site).
+          </span>
+        </label>
+      )}
 
       {selectedKind === "blog_draft" && (
         <label className="space-y-1 text-xs">
