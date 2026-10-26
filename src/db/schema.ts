@@ -56,6 +56,22 @@ export const clients = sqliteTable("clients", {
   prMode: text("pr_mode", { enum: ["off", "pr", "pr_merge"] })
     .notNull()
     .default("off"),
+  /**
+   * How far the autopilot may go on this client. Null follows the
+   * workspace-wide level; otherwise it overrides it for this client only.
+   */
+  autopilotLevel: text("autopilot_level", {
+    enum: ["off", "suggest", "apply_safe", "apply_all"],
+  }),
+  /**
+   * Who does the work: "wordpress" writes through the site's plugin,
+   * "claude" hands tasks to Claude Code in the local project folder, and
+   * "auto" picks WordPress when the site is connected, else Claude when a
+   * folder is set.
+   */
+  autopilotEngine: text("autopilot_engine", { enum: ["auto", "wordpress", "claude"] })
+    .notNull()
+    .default("auto"),
   // Targeting — every recommendation, rank check, SERP scan, autocomplete
   // fan-out, and citation suggestion uses these. country defaults to "US"
   // for back-compat with rows created before this column existed.
