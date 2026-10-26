@@ -16,7 +16,9 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { tasks } from "@/db/schema";
+import { closeBatch, batchBranchName, type BatchRun } from "./batch";
 import { firstPrompt, resolveTaskFolder } from "./folder";
+import { usableWorkflow } from "./workflow";
 import { setTurnEndHook, startTurn, stopTurn, type TurnEnd } from "./runner";
 
 export type QueueState = {
@@ -31,6 +33,8 @@ export type QueueState = {
   attempted: number[];
   failed: number[];
   note: string | null;
+  /** Set for a "one pull request per run" client: where the run's commits go. */
+  batch?: BatchRun;
 };
 
 type Store = { queues: Map<number, QueueState> };
@@ -59,25 +63,49 @@ async function openTasks(clientId: number, only?: number[]) {
   );
 }
 
+/**
+ * The run is over. For a one-pull-request run this is where the branch is
+ * pushed and the pull request opened; the result is added to the note when
+ * it is ready.
+ */
+function end(q: QueueState, note: string) {
+  q.active = false;
+  q.current = null;
+  q.note = note;
+  const batch = q.batch;
+  if (!batch) return;
+  const attempted = [...q.attempted];
+  void (async () => {
+    const rows = attempted.length
+      ? await db
+          .select({ id: tasks.id, title: tasks.title, status: tasks.status })
+          .from(tasks)
+          .where(inArray(tasks.id, attempted))
+      : [];
+    const result = await closeBatch(
+      batch,
+      rows.map((r) => ({ id: r.id, title: r.title, done: r.status === "done" })),
+    );
+    q.note = `${note} ${result}`;
+  })();
+}
+
 async function advance(q: QueueState) {
   if (!q.active) return;
   const next = (await openTasks(q.clientId, q.only)).find((t) => !q.attempted.includes(t.id));
   if (!next) {
-    q.active = false;
-    q.current = null;
-    q.note = "All open tasks were worked through.";
+    end(q, "All open tasks were worked through.");
     return;
   }
   const folder = await resolveTaskFolder(next.id);
   if (!folder.ok) {
-    q.active = false;
-    q.current = null;
-    q.note = folder.error;
+    end(q, folder.error);
     return;
   }
   q.attempted.push(next.id);
   q.current = next.id;
-  const started = startTurn(next.id, folder.dir, firstPrompt(next.id), folder.workflow);
+  const workflow = q.batch ? { ...folder.workflow, batchBranch: q.batch.branch } : folder.workflow;
+  const started = startTurn(next.id, folder.dir, firstPrompt(next.id), workflow);
   if (!started.ok) {
     q.failed.push(next.id);
     q.current = null;
@@ -96,16 +124,14 @@ setTurnEndHook((taskId: number, how: TurnEnd) => {
   if (!q) return;
   q.current = null;
   if (how === "stopped") {
-    q.active = false;
-    q.note = "Stopped.";
+    end(q, "Stopped.");
     return;
   }
   if (how === "error") {
     q.failed.push(taskId);
     const tail = q.attempted.slice(-MAX_FAILURES_IN_A_ROW);
     if (tail.length === MAX_FAILURES_IN_A_ROW && tail.every((id) => q.failed.includes(id))) {
-      q.active = false;
-      q.note = "Stopped after three failures in a row. Open the last chat to see why.";
+      end(q, "Stopped after three failures in a row. Open the last chat to see why.");
       return;
     }
   }
@@ -139,6 +165,10 @@ export async function startQueue(
     failed: [],
     note: null,
   };
+  const wf = usableWorkflow(folder.workflow);
+  if (wf && wf.prMode === "pr_batch") {
+    q.batch = { dir: folder.dir, repo: wf.githubRepo, base: wf.baseBranch, branch: batchBranchName() };
+  }
   store.queues.set(clientId, q);
   await advance(q);
   return { ok: true, first: q.current };
@@ -147,10 +177,9 @@ export async function startQueue(
 export function stopQueue(clientId: number): boolean {
   const q = store.queues.get(clientId);
   if (!q?.active) return false;
-  q.active = false;
-  q.note = "Stopped.";
-  if (q.current !== null) stopTurn(q.current);
-  q.current = null;
+  const current = q.current;
+  end(q, "Stopped.");
+  if (current !== null) stopTurn(current);
   return true;
 }
 

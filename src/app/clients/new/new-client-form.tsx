@@ -45,7 +45,7 @@ type FormState = {
   localPath: string;
   githubRepo: string;
   baseBranch: string;
-  prMode: "off" | "pr" | "pr_merge";
+  prMode: "off" | "pr" | "pr_merge" | "pr_batch";
   facebook: string;
   twitter: string;
   instagram: string;
@@ -580,6 +580,11 @@ const PR_MODES: { value: FormState["prMode"]; label: string; hint: string }[] = 
     value: "pr_merge",
     label: "Open and merge",
     hint: "Opens the pull request, waits for tests and checks, and merges only if they pass.",
+  },
+  {
+    value: "pr_batch",
+    label: "One pull request per run",
+    hint: "Claude commits every task of a queue run on one branch; one pull request is opened at the end. One preview and one deploy for the whole run.",
   },
 ];
 

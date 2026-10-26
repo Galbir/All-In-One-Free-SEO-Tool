@@ -7,7 +7,7 @@ type Pr = {
   number: number;
   title: string;
   url: string;
-  taskId: number;
+  taskId: number | null;
   checks: "passing" | "pending" | "failing" | "none";
   mergeable: boolean;
   draft: boolean;

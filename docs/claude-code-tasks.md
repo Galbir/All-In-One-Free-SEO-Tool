@@ -13,7 +13,7 @@ On **Clients → Edit**:
 | Local project folder | Where Claude works. Chats start in this folder. |
 | GitHub repository | `owner/name`. Pick from your repos (uses the `gh` sign-in; the app never stores a token). |
 | Base branch | The branch pull requests target (default `main`). |
-| Pull-request mode | `Edit files only`, `Open a pull request`, or `Open and merge`. |
+| Pull-request mode | `Edit files only`, `Open a pull request`, `Open and merge`, or `One pull request per run`. |
 
 Install and sign in to the [`claude`](https://docs.claude.com/en/docs/claude-code) CLI and, for pull requests, the [`gh`](https://cli.github.com) CLI (`gh auth login`).
 
@@ -32,12 +32,13 @@ Install and sign in to the [`claude`](https://docs.claude.com/en/docs/claude-cod
 | Edit files only | Changes the files. Git is left alone. |
 | Open a pull request | Branch `seo/task-<id>-…`, commit, push, `gh pr create`. Stops there for you to review. |
 | Open and merge | The same, then waits for the checks and merges (`--squash --delete-branch`) only when local checks and every PR check are green. After two failed attempts it leaves the PR open and says why. |
+| One pull request per run | Inside a queue run: every task is committed on one branch (`seo/batch-<date>`) and Claude never pushes. When the run ends, the app pushes once and opens a single pull request listing the tasks. One preview and one production deploy for the whole run. Outside a run (a single chat) it behaves like `Open a pull request`. |
 
 Never allowed, whatever the mode: force-push, pushing to the base branch, deleting branches, `git reset`, `git clean`. The allow and deny lists are in `src/lib/task-chat/workflow.ts`.
 
 ### Merging the pull requests from the app
 
-With `Open a pull request`, **Tasks** lists the open pull requests Claude made for the client (branches `seo/task-<id>-…`) under the queue bar, each with its check state and a **Merge** button, plus **Merge all (N)**. A pull request is merged (squash, branch deleted) only when it has no conflicts, is not a draft, and every check is green; the state is read again right before each merge. "Merge all" goes oldest first and reports any that no longer merge after the base branch moved.
+With `Open a pull request` or `One pull request per run`, **Tasks** lists the open pull requests Claude made for the client (branches `seo/task-<id>-…` or `seo/batch-…`) under the queue bar, each with its check state and a **Merge** button, plus **Merge all (N)**. A pull request is merged (squash, branch deleted) only when it has no conflicts, is not a draft, and every check is green; the state is read again right before each merge. "Merge all" goes oldest first and reports any that no longer merge after the base branch moved.
 
 Why this helps with hosting builds: Cloudflare Pages (or Vercel) builds a preview for every pushed branch and a production build for every push to the base branch. Merging when you decide, instead of merging after each task, keeps production builds to the moments you choose. Each merge still triggers one production build; to build only once, merge fewer, larger changes, or limit preview builds to selected branches in the host's settings.
 

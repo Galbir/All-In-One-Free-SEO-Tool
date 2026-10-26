@@ -4,6 +4,9 @@
  *   off       edit files only; git is left alone
  *   pr        a branch and a pull request per task, stop there
  *   pr_merge  the same, then merge once tests and checks pass
+ *   pr_batch  inside a queue run: every task is committed on one branch and
+ *             the app opens a single pull request at the end (Claude never
+ *             pushes). Outside a run it behaves like "pr".
  *
  * The instructions are text; what actually limits Claude is the list of
  * commands it may run (extraAllowedTools) and the ones it may never run
@@ -16,8 +19,15 @@ import { isSafeBranch, normalizeGithubRepo } from "@/lib/github-repo";
 export type Workflow = {
   githubRepo: string | null;
   baseBranch: string;
-  prMode: "off" | "pr" | "pr_merge";
+  prMode: "off" | "pr" | "pr_merge" | "pr_batch";
+  /** Set by the queue for a "pr_batch" run: the one branch all its tasks go on. */
+  batchBranch?: string;
 };
+
+/** True for a task that is part of a one-pull-request run. */
+function inBatch(w: Workflow): boolean {
+  return w.prMode === "pr_batch" && Boolean(w.batchBranch) && isSafeBranch(w.batchBranch!);
+}
 
 /** Null when the client is set to edit files only, or the saved values are unusable. */
 export function usableWorkflow(w: Workflow): (Workflow & { githubRepo: string }) | null {
@@ -42,9 +52,15 @@ const GIT_WRITE = [
   "Bash(gh pr list:*)",
 ];
 
+/** What a batch run may do with git: commit locally, nothing that leaves the machine. */
+const GIT_LOCAL = GIT_WRITE.filter(
+  (t) => !t.startsWith("Bash(git push") && !t.startsWith("Bash(gh pr create"),
+);
+
 export function extraAllowedTools(w: Workflow): string[] {
   const u = usableWorkflow(w);
   if (!u) return [];
+  if (inBatch(u)) return GIT_LOCAL;
   return u.prMode === "pr_merge" ? [...GIT_WRITE, "Bash(gh pr merge:*)"] : GIT_WRITE;
 }
 
@@ -54,6 +70,7 @@ export function alwaysDenied(w: Workflow): string[] {
   if (!u) return [];
   const b = u.baseBranch;
   return [
+    ...(inBatch(u) ? ["Bash(git push:*)"] : []),
     "Bash(git push --force:*)",
     "Bash(git push -f:*)",
     "Bash(git push --force-with-lease:*)",
@@ -72,6 +89,7 @@ export function workflowNote(w: Workflow, taskId: number): string {
   const u = usableWorkflow(w);
   if (!u) return "";
   const b = u.baseBranch;
+  if (inBatch(u)) return batchNote(u, taskId);
   const steps = [
     `This project is the GitHub repository ${u.githubRepo}. Do the work through a pull request, never by committing to ${b}.`,
     `1. Start clean: run git status. If there are uncommitted changes that are not yours, stop and say so. Otherwise git fetch origin and git switch ${b}, then git pull.`,
@@ -92,4 +110,18 @@ export function workflowNote(w: Workflow, taskId: number): string {
   }
   steps.push(`Never force-push, never push to ${b} directly, and never rewrite history.`);
   return steps.join("\n");
+}
+
+function batchNote(u: Workflow & { githubRepo: string }, taskId: number): string {
+  const b = u.baseBranch;
+  const branch = u.batchBranch!;
+  return [
+    `This project is the GitHub repository ${u.githubRepo}. Several tasks are being worked one after another and all of them go on ONE branch, ${branch}. Do not push and do not open a pull request: the app does both once, after the last task.`,
+    `1. Run git status. If there are uncommitted changes that are not yours, stop and say so.`,
+    `2. If the branch ${branch} exists (git branch --list ${branch}), git switch ${branch}. If it does not, git fetch origin, git switch ${b}, git pull, then git switch -c ${branch}.`,
+    `3. Make the change. If package.json has build, lint or test scripts, run the ones that exist and fix what you broke.`,
+    `4. Commit on ${branch} with a short message that names the task (task ${taskId}). Stay on ${branch} afterwards, for the next task.`,
+    `5. Call update_task to mark the task done and say in the note that it is committed on ${branch}.`,
+    `Never push, never merge, never commit to ${b}, and never rewrite history.`,
+  ].join("\n");
 }

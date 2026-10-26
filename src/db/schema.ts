@@ -51,9 +51,10 @@ export const clients = sqliteTable("clients", {
   baseBranch: text("base_branch").notNull().default("main"),
   /**
    * How Claude hands work back: "off" edits files only, "pr" opens a pull
-   * request and stops, "pr_merge" also merges it once tests and checks pass.
+   * request and stops, "pr_merge" also merges it once tests and checks pass,
+   * "pr_batch" puts a whole queue run on one branch and one pull request.
    */
-  prMode: text("pr_mode", { enum: ["off", "pr", "pr_merge"] })
+  prMode: text("pr_mode", { enum: ["off", "pr", "pr_merge", "pr_batch"] })
     .notNull()
     .default("off"),
   /**

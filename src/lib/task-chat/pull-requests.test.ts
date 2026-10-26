@@ -43,6 +43,12 @@ describe("toTaskPr", () => {
     expect(toTaskPr(raw())?.taskId).toBe(7);
   });
 
+  it("takes a whole-run branch too, without a task id", () => {
+    const pr = toTaskPr(raw({ headRefName: "seo/batch-20261026-1240" }));
+    expect(pr?.taskId).toBeNull();
+    expect(toTaskPr(raw({ headRefName: "seo/batch-" }))).toBeNull();
+  });
+
   it("is ready when it can merge and checks pass", () => {
     expect(toTaskPr(raw())?.ready).toBe(true);
     expect(toTaskPr(raw({ statusCheckRollup: [] }))?.ready).toBe(true);

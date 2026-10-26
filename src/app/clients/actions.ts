@@ -51,7 +51,7 @@ const clientInput = z.object({
     .trim()
     .refine((v) => v === "" || isSafeBranch(v), { message: "That is not a valid branch name." })
     .optional(),
-  prMode: z.enum(["off", "pr", "pr_merge"]).optional(),
+  prMode: z.enum(["off", "pr", "pr_merge", "pr_batch"]).optional(),
   facebook: optionalString,
   twitter: optionalString,
   instagram: optionalString,

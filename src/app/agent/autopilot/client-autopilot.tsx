@@ -15,7 +15,7 @@ type Row = {
   engine: "wordpress" | "claude" | "none";
   folder: string | null;
   repo: string | null;
-  prMode: "off" | "pr" | "pr_merge";
+  prMode: "off" | "pr" | "pr_merge" | "pr_batch";
 };
 
 const LEVELS: AutonomyLevel[] = ["off", "suggest", "apply_safe", "apply_all"];
@@ -30,6 +30,7 @@ const PR_LABEL: Record<Row["prMode"], string> = {
   off: "edits the files directly",
   pr: "opens a pull request",
   pr_merge: "opens a pull request and merges it",
+  pr_batch: "opens one pull request for the whole run",
 };
 
 /**

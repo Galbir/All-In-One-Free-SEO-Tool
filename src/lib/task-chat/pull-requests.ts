@@ -1,5 +1,5 @@
 /**
- * The pull requests Claude opened for tasks (branches `seo/task-<id>-…`),
+ * The pull requests Claude opened for tasks (branches `seo/task-<id>-…`, or `seo/batch-…` for a whole run),
  * and merging them from the app: one at a time, or all that are ready.
  *
  * Work goes through the GitHub CLI's own sign-in; the token never reaches
@@ -16,7 +16,8 @@ import { isSafeBranch, normalizeGithubRepo } from "@/lib/github-repo";
 const exec = promisify(execFile);
 const GH = process.platform === "win32" ? "gh.exe" : "gh";
 
-export const TASK_BRANCH = /^seo\/task-(\d+)(?:-|$)/;
+/** seo/task-<id>-… (one task) or seo/batch-<date> (a whole run). */
+export const TASK_BRANCH = /^seo\/(?:task-(\d+)(?:-|$)|batch-\d)/;
 
 export type CheckState = "passing" | "pending" | "failing" | "none";
 
@@ -25,7 +26,8 @@ export type TaskPr = {
   title: string;
   url: string;
   branch: string;
-  taskId: number;
+  /** Null for a pull request that covers a whole run. */
+  taskId: number | null;
   checks: CheckState;
   /** True when GitHub reports no conflicts. */
   mergeable: boolean;
@@ -76,7 +78,7 @@ export function toTaskPr(raw: RawPr): TaskPr | null {
     title: raw.title,
     url: raw.url,
     branch: raw.headRefName,
-    taskId: Number(m[1]),
+    taskId: m[1] ? Number(m[1]) : null,
     checks,
     mergeable,
     draft: raw.isDraft,
