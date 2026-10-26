@@ -525,13 +525,13 @@ function gbpCtaType(raw: unknown): GbpCtaType | null {
   return GBP_CTA_TYPES.includes(raw as GbpCtaType) ? (raw as GbpCtaType) : null;
 }
 
-/** Schedule's `max_chars` → a sane GBP length (Google caps posts at 1500). */
+/** Schedule's `max_chars` → a sane GBP length (default 300 — short posts get read; capped at 1000). */
 function clampGbpMaxChars(raw: unknown): number {
   const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.max(150, Math.min(1500, n)) : 600;
+  return Number.isFinite(n) && n > 0 ? Math.max(150, Math.min(1000, n)) : 300;
 }
 
-/** "about 360–600 characters" for a 600 cap */
+/** "about 180–300 characters" for a 300 cap */
 function gbpLengthRule(maxChars: number): string {
   return `${Math.round(maxChars * 0.6)}–${maxChars} characters total, hard limit ${maxChars}`;
 }

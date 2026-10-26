@@ -56,7 +56,7 @@ export async function createSchedule(
     .slice(0, 58);
   const maxChars = Math.max(
     150,
-    Math.min(1500, Number(formData.get("maxChars") ?? 600) || 600),
+    Math.min(1000, Number(formData.get("maxChars") ?? 300) || 300),
   );
   // Where the approved item ultimately goes:
   //   "local"     — save in the tool's queue; copy/paste yourself (no integration needed)

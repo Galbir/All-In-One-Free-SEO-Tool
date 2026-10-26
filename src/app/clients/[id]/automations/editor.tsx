@@ -497,13 +497,12 @@ export function SchedulesEditor({
                 <span className="text-muted-foreground">Post length</span>
                 <select
                   name="maxChars"
-                  defaultValue="600"
+                  defaultValue="300"
                   className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
                 >
                   <option value="300">Short (≤ 300 characters)</option>
                   <option value="600">Medium (≤ 600 characters)</option>
                   <option value="1000">Long (≤ 1000 characters)</option>
-                  <option value="1500">Maximum (≤ 1500 characters)</option>
                 </select>
               </label>
               <label className="space-y-1 text-xs">
@@ -767,7 +766,7 @@ function ScheduleRow({
               {cfg.gbp_source === "woo_product" ? "Shop product" : "Topic post"}
               {" · "}
               <span className="text-foreground/80">Max length:</span>{" "}
-              {cfg.max_chars ?? 600} chars
+              {cfg.max_chars ?? 300} chars
               {cfg.post_type === "OFFER" && (
                 <>
                   {" · "}
