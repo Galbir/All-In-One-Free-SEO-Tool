@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   geoTargetFor,
   languageFor,
+  marketLanguage,
   normalizeCustomerId,
   parseKeywordIdeas,
   rankIdeas,
@@ -35,7 +36,7 @@ describe("market ids", () => {
   it("maps countries and languages, defaulting to US English", () => {
     expect(geoTargetFor("ro")).toBe("geoTargetConstants/2642");
     expect(geoTargetFor("ZZ")).toBe("geoTargetConstants/2840");
-    expect(languageFor("ro-RO")).toBe("languageConstants/1040");
+    expect(languageFor("ro-RO")).toBe("languageConstants/1032");
     expect(languageFor(null)).toBe("languageConstants/1000");
   });
 });
@@ -120,5 +121,19 @@ describe("rankIdeas", () => {
       { exclude: ["tracked"] },
     );
     expect(out.map((i) => i.text)).toEqual(["fresh"]);
+  });
+});
+
+describe("marketLanguage", () => {
+  it("uses the market language when the profile still says en", () => {
+    expect(marketLanguage("RO", "en")).toBe("ro");
+    expect(marketLanguage("RO", null)).toBe("ro");
+  });
+  it("keeps an explicit language and English markets", () => {
+    expect(marketLanguage("RO", "de")).toBe("de");
+    expect(marketLanguage("US", "en")).toBe("en");
+  });
+  it("maps Romanian to the real language id", () => {
+    expect(languageFor("ro")).toBe("languageConstants/1032");
   });
 });

@@ -17,7 +17,7 @@ export async function trackPlannerKeywords(
       chosen ??
       (await discoverClientKeywords(clientId, { limit: 10 })).map((i) => i.text);
     const added = await trackKeywords(clientId, texts.slice(0, 50));
-    revalidatePath(`/clients/${clientId}`);
+    revalidatePlanner(clientId);
     return {
       ok: true,
       message:
@@ -31,12 +31,26 @@ export async function trackPlannerKeywords(
 }
 
 /** Ask the planner again, ignoring the one-day cache. */
-export async function refreshPlannerIdeas(clientId: number) {
+export async function refreshPlannerIdeas(
+  clientId: number,
+): Promise<TrackPlannerResult> {
   await guardAction("edit", clientId);
   try {
-    await discoverClientKeywords(clientId, { refresh: true });
-  } catch {
-    // the panel shows the error on its next render
+    const ideas = await discoverClientKeywords(clientId, { refresh: true });
+    revalidatePlanner(clientId);
+    return {
+      ok: true,
+      message: ideas.length
+        ? `Found ${ideas.length} ideas.`
+        : "Google returned no new ideas for this site and market.",
+    };
+  } catch (err) {
+    revalidatePlanner(clientId);
+    return { ok: false, message: (err as Error).message };
   }
+}
+
+function revalidatePlanner(clientId: number) {
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath(`/keywords/c/${clientId}`);
 }

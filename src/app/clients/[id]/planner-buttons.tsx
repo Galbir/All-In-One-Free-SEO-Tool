@@ -14,6 +14,7 @@ export function PlannerButtons({ clientId }: { clientId: number }) {
         disabled={busy}
         onClick={() =>
           start(async () => {
+            setMsg("Working…");
             setMsg((await trackPlannerKeywords(clientId, null)).message);
           })
         }
@@ -24,7 +25,12 @@ export function PlannerButtons({ clientId }: { clientId: number }) {
         size="sm"
         variant="outline"
         disabled={busy}
-        onClick={() => start(() => refreshPlannerIdeas(clientId))}
+        onClick={() =>
+          start(async () => {
+            setMsg("Asking Google…");
+            setMsg((await refreshPlannerIdeas(clientId)).message);
+          })
+        }
       >
         Ask again
       </Button>

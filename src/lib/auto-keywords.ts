@@ -33,7 +33,12 @@
 import { researchKeywords, type KeywordSuggestion } from "./keyword-research";
 import { getGscTopQueries } from "./google-data";
 import { callAI } from "./ai-call";
-import { generateKeywordIdeas, getAdsStatus, rankIdeas } from "./google-ads";
+import {
+  generateKeywordIdeas,
+  getAdsStatus,
+  marketLanguage,
+  rankIdeas,
+} from "./google-ads";
 import { expandProductList, looksB2B } from "./product-list";
 import {
   readSiteVocabulary,
@@ -216,6 +221,7 @@ export async function discoverKeywords(
       const ideas = await generateKeywordIdeas({
         seeds: allSeeds.slice(0, 10),
         country: input.country,
+        language: marketLanguage(input.country, null),
         limit: 300,
       });
       for (const idea of rankIdeas(ideas, { minVolume: 20 }).slice(0, limit)) {

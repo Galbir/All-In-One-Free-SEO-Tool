@@ -83,8 +83,47 @@ export const LANGUAGE_IDS: Record<string, number> = {
   pl: 1030,
   ru: 1031,
   tr: 1037,
-  ro: 1040,
+  ro: 1032,
+  ar: 1019,
+  bg: 1020,
+  cs: 1021,
+  el: 1022,
+  hi: 1023,
+  hu: 1024,
+  id: 1025,
+  lv: 1028,
+  lt: 1029,
+  sk: 1033,
+  sl: 1034,
+  sr: 1035,
+  uk: 1036,
+  hr: 1039,
+  vi: 1040,
+  th: 1044,
+  et: 1043,
 };
+
+/**
+ * The language a market searches in, for clients whose profile language was
+ * left at the default "en" although the site is local.
+ */
+const MARKET_LANGUAGE: Record<string, string> = {
+  RO: "ro", DE: "de", AT: "de", FR: "fr", ES: "es", MX: "es", AR: "es",
+  IT: "it", NL: "nl", PL: "pl", PT: "pt", BR: "pt", SE: "sv", NO: "no",
+  DK: "da", FI: "fi", CZ: "cs", SK: "sk", HU: "hu", BG: "bg", GR: "el",
+  HR: "hr", RS: "sr", SI: "sl", LT: "lt", LV: "lv", EE: "et", TR: "tr",
+  RU: "ru", UA: "uk", JP: "ja", KR: "ko", ID: "id", VN: "vi", TH: "th",
+};
+
+/** Profile language, or the market's own when the profile still says "en". */
+export function marketLanguage(
+  country: string | null | undefined,
+  language: string | null | undefined,
+): string {
+  const lang = (language ?? "en").toLowerCase();
+  if (lang !== "en") return lang;
+  return MARKET_LANGUAGE[(country ?? "").toUpperCase()] ?? "en";
+}
 
 export function geoTargetFor(country: string | null | undefined): string {
   const id = GEO_TARGETS[(country ?? "US").toUpperCase()] ?? GEO_TARGETS.US;
@@ -348,12 +387,20 @@ export async function discoverClientKeywords(
     .from(keywords)
     .where(eq(keywords.clientId, clientId));
   const trackedTexts = tracked.map((k) => k.query);
-  const raw = await generateKeywordIdeas({
-    seeds: trackedTexts.slice(0, 5),
-    url: client.url,
-    country: client.country,
-    language: client.language,
-  });
+  const lang = marketLanguage(client.country, client.language);
+  // The site on its own first, then the tracked keywords as seeds. A
+  // single request with both returns far fewer ideas than the two apart.
+  const batches = await Promise.all([
+    generateKeywordIdeas({ url: client.url, country: client.country, language: lang }),
+    trackedTexts.length > 0
+      ? generateKeywordIdeas({
+          seeds: trackedTexts.slice(0, 5),
+          country: client.country,
+          language: lang,
+        })
+      : Promise.resolve([]),
+  ]);
+  const raw = batches.flat();
   const ranked = rankIdeas(raw, { exclude: trackedTexts }).slice(0, 100);
   await setSetting(cacheKey, { at: Date.now(), ideas: ranked });
   return ranked.slice(0, opts.limit ?? 50);

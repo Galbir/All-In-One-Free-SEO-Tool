@@ -235,7 +235,10 @@ export default async function PerClientKeywordsPage({
         }
       />
 
-      <ResearchForm clients={[{ id: client.id, name: client.name }]} />
+      <ResearchForm
+        clients={[{ id: client.id, name: client.name }]}
+        defaultCountry={client.country ?? "US"}
+      />
       <CsvImportExport clients={[{ id: client.id, name: client.name }]} />
 
       {adsReady && <PlannerPanel clientId={client.id} />}
