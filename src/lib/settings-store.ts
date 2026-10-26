@@ -121,6 +121,8 @@ export type SettingKey =
   | "anomaly_runner.last_run"
   | "title_test_runner.last_run"
   | "google.gmail_scope_ok"
+  // Google Ads (Keyword Planner): developer token, customer ids, cached ideas.
+  | `google_ads.${string}`
   | "google.gmail_scope_checked_at"
   | "api.pagespeed"
   // Credit-saver mode: cap maxTokens, force terse system prompt, lower temp.

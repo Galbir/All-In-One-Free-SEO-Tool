@@ -12,6 +12,7 @@
  * calls them as part of its 24h sweep; whichever comes first does the work.
  */
 
+import { pickPlannerKeywords } from "@/lib/google-ads";
 import { and, asc, desc, eq, gte, lte, or, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
@@ -236,13 +237,28 @@ async function generateForSchedule(
   const customKeywords = Array.isArray(cfg.keywords_custom)
     ? (cfg.keywords_custom as unknown[]).map(String).filter(Boolean)
     : [];
-  const kws =
+  // "planner" lets Google Keyword Planner find the keywords: ideas for
+  // this client's site and market, best volume-to-competition first,
+  // walking down the list run by run. Without Ads it quietly falls back
+  // to the tracked keywords.
+  const plannerKeywords =
+    cfg.keywords_mode === "planner"
+      ? await pickPlannerKeywords(client.id)
+      : [];
+  const focusKeywords =
     cfg.keywords_mode === "custom" && customKeywords.length > 0
       ? customKeywords
+      : plannerKeywords;
+  const kws =
+    focusKeywords.length > 0
+      ? focusKeywords
       : await topClientKeywords(client.id);
   let context = await buildClientContext({ client, topicSeed });
-  if (cfg.keywords_mode === "custom" && customKeywords.length > 0) {
-    context += `\n\n[Focus keywords — use 1-3 of them naturally]\n${customKeywords.join("; ")}`;
+  if (focusKeywords.length > 0) {
+    context += `
+
+[Focus keywords — use 1-3 of them naturally]
+${focusKeywords.join("; ")}`;
   }
   const buttonText = typeof cfg.button_text === "string" ? cfg.button_text.trim() : "";
   const buttonText2 =

@@ -66,7 +66,11 @@ async function parseScheduleForm(
       : "topic";
   const socialSource =
     formData.get("socialSource") === "woo_product" ? "woo_product" : "topic";
-  const keywordsMode = formData.get("keywordsMode") === "custom" ? "custom" : "top";
+  const keywordsModeRaw = formData.get("keywordsMode");
+  const keywordsMode =
+    keywordsModeRaw === "custom" || keywordsModeRaw === "planner"
+      ? keywordsModeRaw
+      : "top";
   const keywordsCustom = String(formData.get("keywordsCustom") ?? "")
     .split(/[,\n;]/)
     .map((k) => k.trim().slice(0, 80))
