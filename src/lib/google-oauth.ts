@@ -24,6 +24,13 @@ export const GOOGLE_SCOPES = [
   "openid",
 ] as const;
 
+/**
+ * Keyword Planner lives behind the Google Ads API, which needs its own
+ * scope. It is opt-in (`/api/google/auth?ads=1`) so everyone else keeps
+ * the consent screen they already approved.
+ */
+export const GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
+
 export type GoogleConnectionStatus = {
   configured: boolean;
   connected: boolean;
@@ -135,12 +142,13 @@ export function buildAuthUrl(opts: {
   clientId: string;
   redirectUri: string;
   state?: string;
+  extraScopes?: readonly string[];
 }): string {
   const params = new URLSearchParams({
     client_id: opts.clientId,
     redirect_uri: opts.redirectUri,
     response_type: "code",
-    scope: GOOGLE_SCOPES.join(" "),
+    scope: [...GOOGLE_SCOPES, ...(opts.extraScopes ?? [])].join(" "),
     access_type: "offline",
     prompt: "consent",
     include_granted_scopes: "true",

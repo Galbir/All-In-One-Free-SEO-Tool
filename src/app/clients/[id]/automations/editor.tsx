@@ -570,6 +570,9 @@ function ScheduleForm({
             className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
           >
             <option value="top">Top tracked keywords (best ranking)</option>
+            <option value="planner">
+              Keyword Planner ideas (found for me)
+            </option>
             <option value="custom">Only the keywords I type</option>
           </select>
           {keywordsMode === "custom" && (
@@ -582,6 +585,8 @@ function ScheduleForm({
           )}
           <span className="text-[10px] text-muted-foreground">
             Used in the text and to choose which products to feature.
+            {keywordsMode === "planner" &&
+              " Google Keyword Planner suggests new keywords for this site, best volume with least competition first, a few per run. Needs Google Ads under Settings → Google; until then the top tracked keywords are used."}
             {keywordsMode === "top" &&
               (trackedKeywords.length > 0
                 ? ` Tracked now: ${trackedKeywords.slice(0, 8).join(", ")}${trackedKeywords.length > 8 ? "…" : ""}`
@@ -907,6 +912,12 @@ function ScheduleRow({
                   {cfg.offer_coupon ? ` (coupon ${cfg.offer_coupon})` : ""}
                 </>
               )}
+            </div>
+          )}
+          {cfg.keywords_mode === "planner" && (
+            <div>
+              <span className="text-foreground/80">Keywords:</span> from Keyword
+              Planner
             </div>
           )}
           {cfg.keywords_mode === "custom" && cfg.keywords_custom && (

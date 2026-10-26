@@ -19,6 +19,8 @@ import {
 } from "@/lib/google-oauth";
 import { getSetting } from "@/lib/settings-store";
 import { GoogleCredentialsForm } from "./credentials-form";
+import { GoogleAdsForm } from "./ads-form";
+import { getAdsStatus } from "@/lib/google-ads";
 import { ServiceAccountForm } from "./service-account-form";
 import { serviceAccountEmail } from "@/lib/google-service-account";
 import {
@@ -39,6 +41,7 @@ export default async function GoogleSettingsPage({
   // Null when no key is saved. Drives which half of the form renders.
   const serviceAccountAddress = await serviceAccountEmail().catch(() => null);
   const clientSecret = await getSetting<string>("google.client_secret");
+  const ads = await getAdsStatus();
 
   // The URI shown here MUST equal what the auth-init route + callback
   // route send to Google. Shared helper enforces that. Divergence
@@ -102,6 +105,26 @@ GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-…`}</pre>
           of this instance benefits from it without doing the setup themselves.
         </Banner>
       )}
+
+      <Section title="Google Ads — Keyword Planner">
+        <p className="text-sm text-muted-foreground">
+          Lets blog schedules and the client page find keywords for you, from
+          Google&apos;s own Keyword Planner, instead of you adding tracked
+          keywords by hand. The API is free. You need a Google Ads account
+          (even one that never ran an ad), a developer token from{" "}
+          <em>Tools → API Center</em>, and the Google connection from this
+          page. Without ad spend Google reports volume as ranges, which still
+          ranks ideas against each other.
+        </p>
+        <GoogleAdsForm
+          hasToken={ads.hasToken}
+          customerId={ads.customerId}
+          loginCustomerId={ads.loginCustomerId}
+          apiVersion={ads.apiVersion}
+          authorized={ads.authorized}
+          canConnect={status.credentialsSet}
+        />
+      </Section>
 
       {/* Why */}
       <Section title="Why connect Google?">

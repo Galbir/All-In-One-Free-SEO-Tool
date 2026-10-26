@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   buildAuthUrl,
+  GOOGLE_ADS_SCOPE,
   getGoogleClientCredentials,
   resolveRedirectUri,
 } from "@/lib/google-oauth";
@@ -32,7 +33,10 @@ export async function GET(req: NextRequest) {
   if (clientId && /^\d+$/.test(clientId)) {
     stateParts.push(`clientId:${clientId}`);
   }
+  const ads = req.nextUrl.searchParams.get("ads") === "1";
+  if (ads) stateParts.push("ads");
   const url = buildAuthUrl({
+    extraScopes: ads ? [GOOGLE_ADS_SCOPE] : undefined,
     clientId: creds.clientId,
     redirectUri,
     state: stateParts.length > 0 ? stateParts.join("|") : undefined,

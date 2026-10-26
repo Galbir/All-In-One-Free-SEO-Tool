@@ -132,6 +132,10 @@ export async function GET(req: NextRequest) {
     setSetting("google.access_token_expires_at", expiresAt),
   ]);
   if (email) await setSetting("google.connected_email", email);
+  // Consent for Keyword Planner was asked for in this same round trip.
+  if (state.split("|").includes("ads")) {
+    await setSetting("google_ads.authorized", true);
+  }
 
   // Refresh the gmail-scope cache so the outreach banner disappears
   // immediately if the user just granted the gmail.readonly scope.
