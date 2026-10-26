@@ -806,12 +806,20 @@ Pick the most timely angle for this business. Output strict JSON only — no mar
     feature: "general",
     clientId: opts.client.id,
   });
-  if (!raw) return null;
+  if (!raw) {
+    throw new Error(
+      "the AI provider returned no answer (check Settings → AI, or try again)",
+    );
+  }
   const parsed = extractJson(raw) as {
     summary?: string;
     callToAction?: string | null;
   } | null;
-  if (!parsed || !parsed.summary) return null;
+  if (!parsed || !parsed.summary) {
+    throw new Error(
+      `the AI answer was not the expected JSON: ${raw.replace(/\s+/g, " ").slice(0, 120)}`,
+    );
+  }
   const { trimGbpSummary } = await import("./gbp-api");
   return {
     title: parsed.summary.slice(0, 80),
