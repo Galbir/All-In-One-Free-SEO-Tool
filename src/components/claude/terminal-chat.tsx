@@ -201,7 +201,7 @@ export function TerminalChat({
               title="Claude goes on with this client's other open tasks, highest priority first"
               className="rounded-md border border-[#d97757]/50 px-2.5 py-1 font-semibold text-[#d97757] hover:bg-[#d97757]/10 disabled:opacity-50"
             >
-              {moving ? "Starting…" : "Continue with next ▸"}
+              {moving ? "Starting…" : "Move to next task ▸"}
             </button>
           </div>
         )}
