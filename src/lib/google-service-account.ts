@@ -65,6 +65,9 @@ const TOKEN_EXPIRY_SETTING = "google.service_account_token_expires_at";
 export const SERVICE_ACCOUNT_SCOPES = [
   "https://www.googleapis.com/auth/webmasters.readonly",
   "https://www.googleapis.com/auth/analytics.readonly",
+  // Keyword Planner. Harmless for an account that was never added to a
+  // Google Ads account: the token just fails there, with Google's own error.
+  "https://www.googleapis.com/auth/adwords",
 ] as const;
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";

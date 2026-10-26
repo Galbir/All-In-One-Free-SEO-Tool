@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { clients, keywords } from "@/db/schema";
 import { decrypt } from "@/lib/crypto";
 import { getAccessToken } from "@/lib/google-oauth";
+import { serviceAccountEmail } from "@/lib/google-service-account";
 import { getSetting, setSetting } from "@/lib/settings-store";
 
 /**
@@ -203,13 +204,15 @@ export async function getAdsStatus(): Promise<AdsStatus> {
     getSetting<boolean>("google_ads.authorized"),
   ]);
   const customerId = normalizeCustomerId(customer);
+  // A service account added as a user in Google Ads needs no consent screen.
+  const viaServiceAccount = Boolean(await serviceAccountEmail().catch(() => null));
   return {
     hasToken: Boolean(token),
     customerId,
     loginCustomerId: normalizeCustomerId(login),
     apiVersion: version?.trim() || DEFAULT_ADS_API_VERSION,
-    authorized: Boolean(authorized),
-    ready: Boolean(token && customerId && authorized),
+    authorized: Boolean(authorized) || viaServiceAccount,
+    ready: Boolean(token && customerId && (authorized || viaServiceAccount)),
   };
 }
 
