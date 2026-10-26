@@ -288,6 +288,20 @@
       "when": 1792998755180,
       "tag": "0071_client_local_path",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1793002436908,
+      "tag": "0072_task_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1793003300299,
+      "tag": "0073_client_github_pr",
+      "breakpoints": true
     }
   ]
 }

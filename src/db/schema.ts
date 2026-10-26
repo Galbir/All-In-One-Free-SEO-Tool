@@ -45,6 +45,17 @@ export const clients = sqliteTable("clients", {
    * right folder.
    */
   localPath: text("local_path"),
+  /** GitHub repo as "owner/name". Lets the task chat work through pull requests. */
+  githubRepo: text("github_repo"),
+  /** Branch pull requests target and merge into. Usually main. */
+  baseBranch: text("base_branch").notNull().default("main"),
+  /**
+   * How Claude hands work back: "off" edits files only, "pr" opens a pull
+   * request and stops, "pr_merge" also merges it once tests and checks pass.
+   */
+  prMode: text("pr_mode", { enum: ["off", "pr", "pr_merge"] })
+    .notNull()
+    .default("off"),
   // Targeting — every recommendation, rank check, SERP scan, autocomplete
   // fan-out, and citation suggestion uses these. country defaults to "US"
   // for back-compat with rows created before this column existed.
@@ -233,6 +244,38 @@ export const tasks = sqliteTable("tasks", {
   }),
   ...timestamps,
 });
+
+/**
+ * One Claude Code conversation per task, run headless on this machine in
+ * the client's project folder. `sessionId` is Claude's own id, which is
+ * what `--resume` needs to pick the thread up again after a restart.
+ */
+export const taskChats = sqliteTable("task_chats", {
+  taskId: integer("task_id")
+    .primaryKey()
+    .references(() => tasks.id, { onDelete: "cascade" }),
+  sessionId: text("session_id"),
+  status: text("status", { enum: ["idle", "running", "error"] })
+    .notNull()
+    .default("idle"),
+  ...timestamps,
+});
+
+/** What the chat panel shows, in order. `data` is JSON, shape set by `kind`. */
+export const taskChatEvents = sqliteTable("task_chat_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  taskId: integer("task_id")
+    .notNull()
+    .references(() => tasks.id, { onDelete: "cascade" }),
+  kind: text("kind", {
+    enum: ["user", "text", "tool", "tool_result", "result", "error", "attachment", "suggestion"],
+  }).notNull(),
+  data: text("data", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
 
 export const keywords = sqliteTable("keywords", {
   id: integer("id").primaryKey({ autoIncrement: true }),
