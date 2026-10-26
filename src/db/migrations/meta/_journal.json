@@ -281,6 +281,13 @@
       "when": 1789286252189,
       "tag": "0070_page_monitor_severity",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1792998755180,
+      "tag": "0071_client_local_path",
+      "breakpoints": true
     }
   ]
 }

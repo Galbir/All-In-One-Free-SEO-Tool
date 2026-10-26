@@ -37,6 +37,14 @@ export const clients = sqliteTable("clients", {
    * two — replies would go wherever Google happened to list first.
    */
   gbpLocationName: text("gbp_location_name"),
+  /**
+   * Where this client's site source lives on the machine running the tool
+   * (a repo or folder, e.g. an Astro or Next.js project). Informational:
+   * the app never reads or writes there. It is put into the prompts and
+   * MCP answers handed to a coding assistant so the work lands in the
+   * right folder.
+   */
+  localPath: text("local_path"),
   // Targeting — every recommendation, rank check, SERP scan, autocomplete
   // fan-out, and citation suggestion uses these. country defaults to "US"
   // for back-compat with rows created before this column existed.

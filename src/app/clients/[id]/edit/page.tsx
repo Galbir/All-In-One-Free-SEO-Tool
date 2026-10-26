@@ -66,6 +66,7 @@ export default async function EditClientPage({
               phone: client.phone ?? "",
               email: client.email ?? "",
               gbpUrl: client.gbpUrl ?? "",
+              localPath: client.localPath ?? "",
               facebook: social.facebook ?? "",
               twitter: social.twitter ?? "",
               instagram: social.instagram ?? "",

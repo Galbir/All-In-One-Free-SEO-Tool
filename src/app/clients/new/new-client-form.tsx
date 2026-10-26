@@ -40,6 +40,7 @@ type FormState = {
   phone: string;
   email: string;
   gbpUrl: string;
+  localPath: string;
   facebook: string;
   twitter: string;
   instagram: string;
@@ -57,6 +58,7 @@ const emptyState: FormState = {
   phone: "",
   email: "",
   gbpUrl: "",
+  localPath: "",
   facebook: "",
   twitter: "",
   instagram: "",
@@ -344,6 +346,16 @@ export function NewClientForm({
             placeholder="maps.google.com/… or business name"
             hint="Paste the share link from Google Maps."
           />
+          {mode === "update" && (
+            <Field
+              label="Local project folder"
+              name="localPath"
+              value={fields.localPath}
+              onChange={(v) => update("localPath", v)}
+              placeholder="C:\Users\you\work\acme-site"
+              hint="Optional. Where this site's source lives on this machine. Used in AI task prompts so a coding assistant opens the right folder; the app never touches it."
+            />
+          )}
         </div>
       </Section>
 

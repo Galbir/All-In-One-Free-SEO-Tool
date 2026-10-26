@@ -41,6 +41,7 @@ const clientInput = z.object({
   phone: optionalString,
   email: optionalString,
   gbpUrl: optionalString,
+  localPath: optionalString,
   facebook: optionalString,
   twitter: optionalString,
   instagram: optionalString,
@@ -294,6 +295,7 @@ export async function updateClient(
     phone: formData.get("phone") ?? undefined,
     email: formData.get("email") ?? undefined,
     gbpUrl: formData.get("gbpUrl") ?? undefined,
+    localPath: formData.get("localPath") ?? undefined,
     facebook: formData.get("facebook") ?? undefined,
     twitter: formData.get("twitter") ?? undefined,
     instagram: formData.get("instagram") ?? undefined,
@@ -332,6 +334,7 @@ export async function updateClient(
       phone: parsed.data.phone ?? null,
       email: parsed.data.email ?? null,
       gbpUrl: parsed.data.gbpUrl ?? null,
+      localPath: parsed.data.localPath ?? null,
       socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : null,
       updatedAt: new Date(),
     })
