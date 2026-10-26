@@ -28,7 +28,11 @@ import {
   disconnectGoogleAccount,
 } from "./actions";
 
-type SearchParams = Promise<{ connected?: string; error?: string }>;
+type SearchParams = Promise<{
+  connected?: string;
+  error?: string;
+  ads?: string;
+}>;
 
 export default async function GoogleSettingsPage({
   searchParams,
@@ -77,6 +81,12 @@ export default async function GoogleSettingsPage({
           real numbers.
         </Banner>
       )}
+      {params.ads === "connected" && (
+        <Banner tone="success" icon={CheckCircle2}>
+          Google Ads is connected. Press <strong>Test Keyword Planner</strong>{" "}
+          below to check it.
+        </Banner>
+      )}
       {params.error && (
         <Banner tone="error" icon={AlertCircle}>
           Connection failed: <code className="font-mono">{params.error}</code>
@@ -112,15 +122,26 @@ GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-…`}</pre>
           Google&apos;s own Keyword Planner, instead of you adding tracked
           keywords by hand. The API is free. You need a Google Ads account
           (even one that never ran an ad), a developer token from{" "}
-          <em>Tools → API Center</em>, and the Google connection from this
-          page. Without ad spend Google reports volume as ranges, which still
-          ranks ideas against each other.
+          <em>Tools → API Center</em>, and the Google OAuth client from this
+          page. <strong>Connect Google Ads</strong> opens Google in your
+          browser and asks only for Ads access; it does not touch the Search
+          Console connection. Without ad spend Google reports volume as
+          ranges, which still ranks ideas against each other. Powered by the
+          open-source{" "}
+          <a
+            className="underline"
+            href="https://github.com/Opteo/google-ads-api"
+            target="_blank"
+            rel="noreferrer"
+          >
+            google-ads-api
+          </a>{" "}
+          library.
         </p>
         <GoogleAdsForm
           hasToken={ads.hasToken}
           customerId={ads.customerId}
           loginCustomerId={ads.loginCustomerId}
-          apiVersion={ads.apiVersion}
           authorized={ads.authorized}
           canConnect={status.credentialsSet}
         />

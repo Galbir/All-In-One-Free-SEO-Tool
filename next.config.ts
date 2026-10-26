@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   // bundled by Next — let Node's normal resolution handle them.
   serverExternalPackages: [
     "pdfkit",
+    // gRPC client for the Google Ads API (Keyword Planner).
+    "google-ads-api",
     "better-sqlite3",
     "playwright",
     "playwright-core",

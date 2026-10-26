@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const ads = req.nextUrl.searchParams.get("ads") === "1";
   if (ads) stateParts.push("ads");
   const url = buildAuthUrl({
-    extraScopes: ads ? [GOOGLE_ADS_SCOPE] : undefined,
+    scopes: ads ? [GOOGLE_ADS_SCOPE] : undefined,
     clientId: creds.clientId,
     redirectUri,
     state: stateParts.length > 0 ? stateParts.join("|") : undefined,

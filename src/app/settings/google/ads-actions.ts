@@ -15,10 +15,6 @@ const adsSchema = z.object({
     .string()
     .trim()
     .refine((v) => v === "" || tenDigits(v), "Ten digits, or leave empty"),
-  apiVersion: z
-    .string()
-    .trim()
-    .refine((v) => v === "" || /^v\d{1,3}$/.test(v), "Like v22, or leave empty"),
 });
 
 export type SaveAdsResult =
@@ -34,7 +30,6 @@ export async function saveGoogleAds(
     developerToken: formData.get("developerToken") ?? "",
     customerId: formData.get("customerId") ?? "",
     loginCustomerId: formData.get("loginCustomerId") ?? "",
-    apiVersion: formData.get("apiVersion") ?? "",
   });
   if (!parsed.success) {
     const errors: Record<string, string> = {};
@@ -44,7 +39,7 @@ export async function saveGoogleAds(
     }
     return { ok: false, errors };
   }
-  const { developerToken, customerId, loginCustomerId, apiVersion } = parsed.data;
+  const { developerToken, customerId, loginCustomerId } = parsed.data;
   // An empty token field keeps the saved one.
   if (developerToken) {
     await setSetting("google_ads.developer_token", encrypt(developerToken));
@@ -58,8 +53,6 @@ export async function saveGoogleAds(
   } else {
     await deleteSetting("google_ads.login_customer_id");
   }
-  if (apiVersion) await setSetting("google_ads.api_version", apiVersion);
-  else await deleteSetting("google_ads.api_version");
   revalidatePath("/settings/google");
   return { ok: true };
 }
@@ -70,8 +63,7 @@ export async function clearGoogleAds() {
     deleteSetting("google_ads.developer_token"),
     deleteSetting("google_ads.customer_id"),
     deleteSetting("google_ads.login_customer_id"),
-    deleteSetting("google_ads.api_version"),
-    deleteSetting("google_ads.authorized"),
+    deleteSetting("google_ads.refresh_token"),
   ]);
   revalidatePath("/settings/google");
 }

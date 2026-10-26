@@ -16,14 +16,12 @@ export function GoogleAdsForm({
   hasToken,
   customerId,
   loginCustomerId,
-  apiVersion,
   authorized,
   canConnect,
 }: {
   hasToken: boolean;
   customerId: string | null;
   loginCustomerId: string | null;
-  apiVersion: string;
   authorized: boolean;
   /** The Google OAuth client is set, so the adwords consent can be asked for. */
   canConnect: boolean;
@@ -80,24 +78,6 @@ export function GoogleAdsForm({
             )}
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="apiVersion">API version</Label>
-          <Input
-            id="apiVersion"
-            name="apiVersion"
-            className="max-w-32"
-            placeholder="v22"
-            defaultValue={apiVersion}
-            aria-invalid={Boolean(errors.apiVersion)}
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Google retires old versions about a year after release. If the test
-            says the version is gone, put the newest one here.
-          </p>
-          {errors.apiVersion && (
-            <p className="text-xs text-destructive">{errors.apiVersion}</p>
-          )}
-        </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save"}
@@ -110,7 +90,7 @@ export function GoogleAdsForm({
         {canConnect ? (
           <a href="/api/google/auth?ads=1">
             <Button type="button" variant="outline">
-              {authorized ? "Reconnect Google Ads access" : "Allow Google Ads access"}
+              {authorized ? "Reconnect Google Ads" : "Connect Google Ads"}
             </Button>
           </a>
         ) : (
@@ -144,7 +124,7 @@ export function GoogleAdsForm({
         <span
           className={`text-xs ${authorized ? "text-emerald-300" : "text-muted-foreground"}`}
         >
-          {authorized ? "Access granted" : "Access not granted yet"}
+          {authorized ? "Signed in to Google Ads" : "Not signed in yet"}
         </span>
       </div>
       {test && (

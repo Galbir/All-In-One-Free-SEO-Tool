@@ -2,7 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, keywords } from "@/db/schema";
 import { decrypt } from "@/lib/crypto";
-import { getAccessToken } from "@/lib/google-oauth";
+import { GoogleAdsApi, enums } from "google-ads-api";
+import { getGoogleClientCredentials } from "@/lib/google-oauth";
 import { getSetting, setSetting } from "@/lib/settings-store";
 
 /**
@@ -10,25 +11,25 @@ import { getSetting, setSetting } from "@/lib/settings-store";
  *
  * The Google Ads API is free. It needs a Google Ads account (a manager
  * account is fine), a developer token and the `adwords` OAuth scope. The
- * token and customer ids are pasted in Settings → Google; the OAuth
- * grant reuses the Google connection already used for Search Console.
+ * token and customer ids are pasted in Settings -> Google; the browser
+ * sign-in is its own button ("Connect Google Ads") and stores its own
+ * refresh token, so it never touches the Search Console connection.
+ *
+ * Calls go through the open-source `google-ads-api` library (Opteo, MIT),
+ * the same one the gsc-mcp Keyword Planner server uses.
  *
  * Accounts that do not spend on ads get volume ranges ("1K-10K") rather
  * than exact numbers, which Google returns as the bucket's lower bound.
  * That is still enough to rank ideas against each other.
  */
 
-/**
- * The Ads API retires versions about a year after release, so this is
- * overridable from Settings instead of being baked in.
- */
-export const DEFAULT_ADS_API_VERSION = "v22";
-
 export type AdsConfig = {
   developerToken: string;
+  refreshToken: string;
   customerId: string;
   loginCustomerId: string | null;
-  apiVersion: string;
+  clientId: string;
+  clientSecret: string;
 };
 
 export type KeywordIdea = {
@@ -102,34 +103,48 @@ export function normalizeCustomerId(raw: string | null | undefined): string | nu
 }
 
 function num(v: unknown): number | null {
-  // REST returns int64 values as strings.
+  // REST returns int64 values as strings; the library may use Long objects.
   if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
+  const n = Number(typeof v === "object" ? String(v) : v);
   return Number.isFinite(n) ? n : null;
 }
 
-/** Parse a `generateKeywordIdeas` / `generateKeywordHistoricalMetrics` response. */
+const COMPETITION: Record<string, KeywordIdea["competition"]> = {
+  "2": "LOW",
+  "3": "MEDIUM",
+  "4": "HIGH",
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+};
+
+/**
+ * Parse a Keyword Planner response: the library's `results` array (snake
+ * case, enums as numbers) or the REST body (camel case, enums as names).
+ */
 export function parseKeywordIdeas(json: unknown): KeywordIdea[] {
-  const results = (json as { results?: unknown[] } | null)?.results;
+  const results = Array.isArray(json)
+    ? json
+    : (json as { results?: unknown[] } | null)?.results;
   if (!Array.isArray(results)) return [];
   const out: KeywordIdea[] = [];
   for (const raw of results) {
     const r = raw as Record<string, unknown>;
     const text = typeof r.text === "string" ? r.text.trim() : "";
     if (!text) continue;
-    const m = (r.keywordIdeaMetrics ?? r.keywordMetrics ?? {}) as Record<
-      string,
-      unknown
-    >;
-    const comp = m.competition;
-    const low = num(m.lowTopOfPageBidMicros);
-    const high = num(m.highTopOfPageBidMicros);
+    const m = (r.keyword_idea_metrics ??
+      r.keyword_metrics ??
+      r.keywordIdeaMetrics ??
+      r.keywordMetrics ??
+      {}) as Record<string, unknown>;
+    const pick = (snake: string, camel: string) => m[snake] ?? m[camel];
+    const low = num(pick("low_top_of_page_bid_micros", "lowTopOfPageBidMicros"));
+    const high = num(pick("high_top_of_page_bid_micros", "highTopOfPageBidMicros"));
     out.push({
       text,
-      volume: num(m.avgMonthlySearches) ?? 0,
-      competition:
-        comp === "LOW" || comp === "MEDIUM" || comp === "HIGH" ? comp : null,
-      competitionIndex: num(m.competitionIndex),
+      volume: num(pick("avg_monthly_searches", "avgMonthlySearches")) ?? 0,
+      competition: COMPETITION[String(m.competition)] ?? null,
+      competitionIndex: num(pick("competition_index", "competitionIndex")),
       lowBid: low === null ? null : low / 1_000_000,
       highBid: high === null ? null : high / 1_000_000,
     });
@@ -167,20 +182,24 @@ export function rankIdeas(
 }
 
 export async function getAdsConfig(): Promise<AdsConfig | null> {
-  const [tokenRaw, customer, login, version] = await Promise.all([
+  const [tokenRaw, customer, login, refreshRaw, creds] = await Promise.all([
     getSetting<string>("google_ads.developer_token"),
     getSetting<string>("google_ads.customer_id"),
     getSetting<string>("google_ads.login_customer_id"),
-    getSetting<string>("google_ads.api_version"),
+    getSetting<string>("google_ads.refresh_token"),
+    getGoogleClientCredentials(),
   ]);
   const developerToken = tokenRaw ? decrypt(tokenRaw) : null;
+  const refreshToken = refreshRaw ? decrypt(refreshRaw) : null;
   const customerId = normalizeCustomerId(customer);
-  if (!developerToken || !customerId) return null;
+  if (!developerToken || !refreshToken || !customerId || !creds) return null;
   return {
     developerToken,
+    refreshToken,
     customerId,
     loginCustomerId: normalizeCustomerId(login),
-    apiVersion: version?.trim() || DEFAULT_ADS_API_VERSION,
+    clientId: creds.clientId,
+    clientSecret: creds.clientSecret,
   };
 }
 
@@ -188,66 +207,64 @@ export type AdsStatus = {
   hasToken: boolean;
   customerId: string | null;
   loginCustomerId: string | null;
-  apiVersion: string;
+  /** The browser sign-in for Google Ads was completed. */
   authorized: boolean;
-  /** Token, customer id and the adwords consent are all in place. */
+  /** Developer token, customer id and the sign-in are all in place. */
   ready: boolean;
 };
 
 export async function getAdsStatus(): Promise<AdsStatus> {
-  const [token, customer, login, version, authorized] = await Promise.all([
+  const [token, customer, login, refresh] = await Promise.all([
     getSetting<string>("google_ads.developer_token"),
     getSetting<string>("google_ads.customer_id"),
     getSetting<string>("google_ads.login_customer_id"),
-    getSetting<string>("google_ads.api_version"),
-    getSetting<boolean>("google_ads.authorized"),
+    getSetting<string>("google_ads.refresh_token"),
   ]);
   const customerId = normalizeCustomerId(customer);
   return {
     hasToken: Boolean(token),
     customerId,
     loginCustomerId: normalizeCustomerId(login),
-    apiVersion: version?.trim() || DEFAULT_ADS_API_VERSION,
-    authorized: Boolean(authorized),
-    ready: Boolean(token && customerId && authorized),
+    authorized: Boolean(refresh),
+    ready: Boolean(token && customerId && refresh),
   };
 }
 
-async function adsPost(
+/**
+ * One Keyword Planner request through the `google-ads-api` library, which
+ * speaks the current Ads API version itself.
+ */
+async function planner(
   cfg: AdsConfig,
-  method: string,
+  call: "generateKeywordIdeas" | "generateKeywordHistoricalMetrics",
   body: Record<string, unknown>,
-  clientId?: number,
 ): Promise<unknown> {
-  const accessToken = await getAccessToken(clientId);
-  const res = await fetch(
-    `https://googleads.googleapis.com/${cfg.apiVersion}/customers/${cfg.customerId}:${method}`,
-    {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        "developer-token": cfg.developerToken,
-        "content-type": "application/json",
-        ...(cfg.loginCustomerId
-          ? { "login-customer-id": cfg.loginCustomerId }
-          : {}),
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
-    },
-  );
-  const text = await res.text();
-  if (!res.ok) {
-    let msg = text.slice(0, 300);
-    try {
-      const j = JSON.parse(text) as { error?: { message?: string } };
-      if (j.error?.message) msg = j.error.message;
-    } catch {
-      // keep the raw text
+  const api = new GoogleAdsApi({
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+    developer_token: cfg.developerToken,
+  });
+  const customer = api.Customer({
+    customer_id: cfg.customerId,
+    refresh_token: cfg.refreshToken,
+    ...(cfg.loginCustomerId ? { login_customer_id: cfg.loginCustomerId } : {}),
+  });
+  try {
+    const request = { customer_id: cfg.customerId, ...body } as never;
+    return await customer.keywordPlanIdeas[call](request);
+  } catch (err) {
+    const e = err as {
+      errors?: { message?: string }[];
+      message?: string;
+    };
+    const reason = e.errors?.[0]?.message ?? e.message ?? String(err);
+    if (/invalid_grant/.test(reason)) {
+      throw new Error(
+        "Google Ads sign-in expired. Use Connect Google Ads in Settings → Google again.",
+      );
     }
-    throw new Error(`Google Ads ${res.status}: ${msg}`);
+    throw new Error(`Google Ads: ${reason}`);
   }
-  return JSON.parse(text) as unknown;
 }
 
 /** Keyword ideas for some seed keywords and/or a site, in one market. */
@@ -259,26 +276,27 @@ export async function generateKeywordIdeas(opts: {
   limit?: number;
 }): Promise<KeywordIdea[]> {
   const cfg = await getAdsConfig();
-  if (!cfg) throw new Error("Google Ads is not configured (Settings → Google).");
+  if (!cfg) throw new Error("Google Ads is not connected (Settings → Google).");
   const seeds = (opts.seeds ?? []).filter(Boolean).slice(0, 20);
   if (seeds.length === 0 && !opts.url) {
     throw new Error("Give at least one seed keyword or a URL.");
   }
   const body: Record<string, unknown> = {
     language: languageFor(opts.language),
-    geoTargetConstants: [geoTargetFor(opts.country)],
-    keywordPlanNetwork: "GOOGLE_SEARCH",
-    includeAdultKeywords: false,
-    pageSize: Math.min(opts.limit ?? 300, 1000),
+    geo_target_constants: [geoTargetFor(opts.country)],
+    keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
+    include_adult_keywords: false,
+    page_size: Math.min(opts.limit ?? 300, 1000),
   };
   if (seeds.length > 0 && opts.url) {
-    body.keywordAndUrlSeed = { url: opts.url, keywords: seeds };
+    body.keyword_and_url_seed = { url: opts.url, keywords: seeds };
   } else if (seeds.length > 0) {
-    body.keywordSeed = { keywords: seeds };
+    body.keyword_seed = { keywords: seeds };
   } else {
-    body.urlSeed = { url: opts.url };
+    body.url_seed = { url: opts.url };
   }
-  return parseKeywordIdeas(await adsPost(cfg, "generateKeywordIdeas", body));
+  const res = await planner(cfg, "generateKeywordIdeas", body);
+  return parseKeywordIdeas(res);
 }
 
 /** Exact volume figures for keywords you already have. */
@@ -288,15 +306,14 @@ export async function keywordMetrics(opts: {
   language?: string | null;
 }): Promise<KeywordIdea[]> {
   const cfg = await getAdsConfig();
-  if (!cfg) throw new Error("Google Ads is not configured (Settings → Google).");
-  return parseKeywordIdeas(
-    await adsPost(cfg, "generateKeywordHistoricalMetrics", {
-      keywords: opts.keywords.slice(0, 1000),
-      language: languageFor(opts.language),
-      geoTargetConstants: [geoTargetFor(opts.country)],
-      keywordPlanNetwork: "GOOGLE_SEARCH",
-    }),
-  );
+  if (!cfg) throw new Error("Google Ads is not connected (Settings → Google).");
+  const res = await planner(cfg, "generateKeywordHistoricalMetrics", {
+    keywords: opts.keywords.slice(0, 1000),
+    language: languageFor(opts.language),
+    geo_target_constants: [geoTargetFor(opts.country)],
+    keyword_plan_network: enums.KeywordPlanNetwork.GOOGLE_SEARCH,
+  });
+  return parseKeywordIdeas(res);
 }
 
 const CACHE_MS = 24 * 60 * 60 * 1000;

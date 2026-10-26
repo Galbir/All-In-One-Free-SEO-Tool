@@ -69,6 +69,30 @@ describe("parseKeywordIdeas", () => {
       },
     ]);
   });
+  it("reads the library's snake_case rows with numeric enums", () => {
+    const out = parseKeywordIdeas([
+      {
+        text: "coffee grinder",
+        keyword_idea_metrics: {
+          avg_monthly_searches: 2400,
+          competition: 4,
+          competition_index: 77,
+          low_top_of_page_bid_micros: 1200000,
+          high_top_of_page_bid_micros: 3600000,
+        },
+      },
+    ]);
+    expect(out).toEqual([
+      {
+        text: "coffee grinder",
+        volume: 2400,
+        competition: "HIGH",
+        competitionIndex: 77,
+        lowBid: 1.2,
+        highBid: 3.6,
+      },
+    ]);
+  });
   it("returns [] for an empty or malformed response", () => {
     expect(parseKeywordIdeas({})).toEqual([]);
     expect(parseKeywordIdeas(null)).toEqual([]);
