@@ -23,6 +23,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { taskChatEvents, taskChats } from "@/db/schema";
 import { parseStreamLine, type ChatEvent } from "./events";
+import { chatModelArgs } from "./model";
 import { DRAFTS_DIR } from "./drafts";
 import { alwaysDenied, extraAllowedTools, workflowNote, type Workflow } from "./workflow";
 
@@ -41,13 +42,19 @@ export const ALLOWED_TOOLS = [
   "Bash(pnpm build:*)",
   "Bash(pnpm lint:*)",
   "Bash(pnpm test:*)",
+  // Read-only: fetch a public page, search the web. Nothing here can ask
+  // for approval, so a tool that is not listed is simply refused.
+  "WebFetch",
+  "WebSearch",
   "mcp__seo-tool__*",
 ];
 
 const SYSTEM_NOTE =
   "You are running inside the SEO tool's task panel, with no one to approve prompts. " +
   "Work only inside this folder, apart from attached draft files, which you may read and edit. If a tool is refused, say so and carry on without it. " +
-  "When the task is finished, call update_task on the seo-tool MCP to mark it done.";
+  "When the task is finished, call update_task on the seo-tool MCP to mark it done. " +
+  "If a seo-tool call answers 429 (too many requests), wait the number of seconds it names, then try the same call again; do not give up on the task. " +
+  "Never add Co-Authored-By trailers, \"Generated with\" lines or any other attribution to commits, pull requests or files.";
 
 const TURN_TIMEOUT_MS = 30 * 60_000;
 
@@ -161,6 +168,7 @@ export function startTurn(
     "stream-json",
     "--verbose",
     "--prompt-suggestions",
+    ...chatModelArgs(),
     "--permission-mode",
     "acceptEdits",
     "--allowedTools",

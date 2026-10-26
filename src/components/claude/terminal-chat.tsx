@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { openChat } from "./dock-store";
 import { MdLite } from "./md-lite";
+import { ModelPicker } from "./model-picker";
 
 type Item = {
   id: number;
@@ -59,6 +61,7 @@ export function TerminalChat({
   const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
   const [since, setSince] = useState(() => Date.now());
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -107,6 +110,21 @@ export function TerminalChat({
     },
     [taskId],
   );
+
+  async function continueWithNext() {
+    setProblem(null);
+    setMoving(true);
+    try {
+      const res = await fetch(`/api/task-chat/${taskId}/next`, { method: "POST" });
+      const data = (await res.json()) as { ok: boolean; next?: number | null; error?: string };
+      if (!data.ok) setProblem(data.error ?? "Could not continue.");
+      else if (data.next) openChat(data.next);
+    } catch {
+      setProblem("Could not reach the app.");
+    } finally {
+      setMoving(false);
+    }
+  }
 
   async function stop() {
     await fetch(`/api/task-chat/${taskId}`, { method: "DELETE" }).catch(() => {});
@@ -174,6 +192,19 @@ export function TerminalChat({
         }}
       >
         {problem && <p className="mb-1.5 text-rose-400">{problem}</p>}
+        {ready && !running && items.length > 0 && (
+          <div className="mb-1.5">
+            <button
+              type="button"
+              disabled={moving}
+              onClick={() => void continueWithNext()}
+              title="Claude goes on with this client's other open tasks, highest priority first"
+              className="rounded-md border border-[#d97757]/50 px-2.5 py-1 font-semibold text-[#d97757] hover:bg-[#d97757]/10 disabled:opacity-50"
+            >
+              {moving ? "Starting…" : "Continue with next ▸"}
+            </button>
+          </div>
+        )}
         <div
           className={`flex items-start gap-2 rounded-lg border px-3 py-2 transition-colors ${
             running ? "border-zinc-800" : "border-zinc-700 focus-within:border-[#d97757]/70"
@@ -213,6 +244,7 @@ export function TerminalChat({
             ) : null}
             enter to send · shift+enter for a new line
           </span>
+          <ModelPicker />
           {running && (
             <button
               type="button"

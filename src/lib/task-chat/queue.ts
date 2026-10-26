@@ -153,3 +153,43 @@ export function stopQueue(clientId: number): boolean {
   q.current = null;
   return true;
 }
+
+/**
+ * "Continue with next", from the chat of a task that is done (or stopped):
+ * Claude goes on with the client's other open tasks, in priority order.
+ *
+ * If a run is already going, nothing new is started and the task it is on
+ * is returned, so the caller just opens that one. If an earlier run was
+ * limited to chosen tasks (autopilot), the rest of those come first.
+ */
+export async function continueWithNext(
+  taskId: number,
+): Promise<{ ok: true; next: number | null } | { ok: false; error: string }> {
+  const [task] = await db
+    .select({ clientId: tasks.clientId })
+    .from(tasks)
+    .where(eq(tasks.id, taskId))
+    .limit(1);
+  if (!task) return { ok: false, error: "Task not found." };
+
+  const existing = store.queues.get(task.clientId);
+  if (existing?.active) {
+    return existing.current !== null && existing.current !== taskId
+      ? { ok: true, next: existing.current }
+      : { ok: false, error: "The queue is already running." };
+  }
+
+  const skip = new Set([taskId, ...(existing?.attempted ?? [])]);
+  let rest = (await openTasks(task.clientId, existing?.only)).filter((t) => !skip.has(t.id));
+  if (rest.length === 0 && existing?.only) {
+    // The chosen tasks are used up; carry on with whatever else is open.
+    rest = (await openTasks(task.clientId)).filter((t) => t.id !== taskId);
+  }
+  if (rest.length === 0) return { ok: false, error: "No more open tasks for this client." };
+
+  const started = await startQueue(
+    task.clientId,
+    rest.map((t) => t.id),
+  );
+  return started.ok ? { ok: true, next: started.first } : started;
+}
