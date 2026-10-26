@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import {
   Calendar,
   ChevronDown,
@@ -9,6 +9,7 @@ import {
   Globe,
   Loader2,
   Megaphone,
+  Pencil,
   Plus,
   Play,
   Power,
@@ -22,6 +23,7 @@ import {
   deleteSchedule,
   runScheduleNow,
   toggleScheduleEnabled,
+  updateSchedule,
   type CreateScheduleState,
 } from "./actions";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
@@ -108,40 +110,7 @@ export function SchedulesEditor({
   trackedKeywords?: string[];
 }) {
   const [showForm, setShowForm] = useState(schedules.length === 0);
-  const [selectedKind, setSelectedKind] = useState<Kind>("blog_draft");
-  const [postType, setPostType] = useState("STANDARD");
-  const [blogSource, setBlogSource] = useState("topic");
-  const [socialSource, setSocialSource] = useState("topic");
-  const [keywordsMode, setKeywordsMode] = useState("top");
-  const [selectedDestination, setSelectedDestination] =
-    useState<Destination>("local");
-  const [state, formAction, pending] = useActionState<
-    CreateScheduleState,
-    FormData
-  >(createSchedule, null);
-
-  // What destinations are valid for the selected kind? Social + checklist
-  // are local-only by design.
-  const allowedDestinations: Destination[] =
-    selectedKind === "blog_draft"
-      ? ["local", "wordpress"]
-      : selectedKind === "gbp_post"
-        ? ["local", "gbp"]
-        : ["local"];
-
-  // If the user switches to a kind where the current destination is no
-  // longer valid, snap back to local.
-  //
-  // Resolved during render rather than in an effect. Whether the current
-  // destination is still valid is a pure function of the two state
-  // values above, so there is nothing to synchronise after the fact —
-  // and the effect version let one frame commit with the dropdown
-  // showing a value that wasn't in its own option list before correcting
-  // itself. React discards this render and restarts before paint.
-  const destinationValid = allowedDestinations.includes(selectedDestination);
-  if (!destinationValid) {
-    setSelectedDestination("local");
-  }
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   return (
     <div className="space-y-5">
@@ -174,9 +143,30 @@ export function SchedulesEditor({
       {/* Existing schedules */}
       {schedules.length > 0 && (
         <ul className="space-y-2">
-          {schedules.map((s) => (
-            <ScheduleRow key={s.id} schedule={s} clientId={clientId} />
-          ))}
+          {schedules.map((s) =>
+            editingId === s.id ? (
+              <li key={s.id}>
+                <ScheduleForm
+                  key={s.id}
+                  clientId={clientId}
+                  wpConnected={wpConnected}
+                  trackedKeywords={trackedKeywords}
+                  schedule={s}
+                  onClose={() => setEditingId(null)}
+                />
+              </li>
+            ) : (
+              <ScheduleRow
+                key={s.id}
+                schedule={s}
+                clientId={clientId}
+                onEdit={() => {
+                  setShowForm(false);
+                  setEditingId(s.id);
+                }}
+              />
+            ),
+          )}
         </ul>
       )}
 
@@ -184,471 +174,583 @@ export function SchedulesEditor({
       {!showForm ? (
         <button
           type="button"
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingId(null);
+            setShowForm(true);
+          }}
           className="inline-flex items-center gap-1.5 rounded-md bg-cyan-500/15 px-4 py-2 text-sm font-medium text-cyan-300 ring-1 ring-inset ring-cyan-500/30 hover:bg-cyan-500/25"
         >
           <Plus className="size-4" />
           Add a schedule
         </button>
       ) : (
-        <form
-          action={formAction}
-          className="glass-apple relative overflow-hidden rounded-2xl p-5 space-y-4"
-        >
-          <input type="hidden" name="clientId" value={clientId} />
-
-          <div>
-            <label className="text-sm font-semibold">What to automate</label>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Pick the kind first — the form below adapts.
-            </p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {(Object.keys(KIND_META) as Kind[]).map((k) => {
-                const meta = KIND_META[k];
-                const active = selectedKind === k;
-                const Icon = meta.icon;
-                return (
-                  <label
-                    key={k}
-                    className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors ${
-                      active
-                        ? meta.activeBorder
-                        : "border-white/10 hover:bg-white/[0.03]"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="kind"
-                      value={k}
-                      checked={active}
-                      onChange={() => setSelectedKind(k)}
-                      className="sr-only"
-                    />
-                    <Icon className={`size-4 shrink-0 mt-0.5 ${meta.iconCls}`} />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">
-                        {meta.label}
-                      </span>
-                      <span className="block text-[11px] text-muted-foreground">
-                        {meta.description}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Destination */}
-          <div>
-            <label className="text-sm font-semibold">
-              Where should approved items go?
-            </label>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Local = stays in the review queue for you to copy/paste. No
-              connection needed.
-            </p>
-            <input
-              type="hidden"
-              name="destination"
-              value={selectedDestination}
-            />
-            <div className="mt-2 grid gap-2 sm:grid-cols-3">
-              <DestinationRadio
-                value="local"
-                title="Save in this tool"
-                description="Draft lives in the queue. Copy to clipboard or download as Markdown / HTML."
-                active={selectedDestination === "local"}
-                disabled={false}
-                onClick={() => setSelectedDestination("local")}
-              />
-              {allowedDestinations.includes("wordpress") && (
-                <DestinationRadio
-                  value="wordpress"
-                  title="Publish to WordPress"
-                  description={
-                    wpConnected
-                      ? "Auto-creates a post via the SEO Tool Bridge plugin."
-                      : "Requires the WP bridge — set it up under the WordPress section below."
-                  }
-                  active={selectedDestination === "wordpress"}
-                  disabled={!wpConnected}
-                  onClick={() => wpConnected && setSelectedDestination("wordpress")}
-                />
-              )}
-              {allowedDestinations.includes("gbp") && (
-                <DestinationRadio
-                  value="gbp"
-                  title="Publish to GBP"
-                  description="Auto-posts via the Google Business Profile API. Location name required below."
-                  active={selectedDestination === "gbp"}
-                  disabled={false}
-                  onClick={() => setSelectedDestination("gbp")}
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="space-y-1 text-xs">
-              <span className="text-muted-foreground">Cadence</span>
-              <select
-                name="cadenceDays"
-                defaultValue="1"
-                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-              >
-                <option value="1">Daily</option>
-                <option value="7">Weekly</option>
-                <option value="14">Every 2 weeks</option>
-                <option value="30">Monthly</option>
-              </select>
-            </label>
-            <label className="space-y-1 text-xs">
-              <span className="text-muted-foreground">
-                Run time (UTC) — HHMM
-              </span>
-              <input
-                type="number"
-                name="timeUtc"
-                defaultValue={900}
-                min={0}
-                max={2359}
-                step={100}
-                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-              />
-            </label>
-          </div>
-
-          <label className="space-y-1 text-xs">
-            <span className="text-muted-foreground">Topic seed / focus</span>
-            <input
-              name="topicSeed"
-              placeholder={
-                selectedKind === "blog_draft"
-                  ? "espresso accessories for home baristas"
-                  : selectedKind === "gbp_post"
-                    ? "new fall menu launch"
-                    : "weekly business tips"
-              }
-              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-            />
-            <span className="text-[10px] text-muted-foreground">
-              The AI uses this as the starting angle each run. Leave blank to
-              let the AI pick freely from the client&apos;s niche.
-            </span>
-          </label>
-
-          <label className="space-y-1 text-xs">
-            <span className="text-muted-foreground">Tone</span>
-            <input
-              name="tone"
-              placeholder="professional, plain English"
-              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-            />
-          </label>
-
-          {selectedKind === "blog_draft" && (
-            <label className="space-y-1 text-xs">
-              <span className="text-muted-foreground">Article about</span>
-              <select
-                name="blogSource"
-                value={blogSource}
-                onChange={(e) => setBlogSource(e.target.value)}
-                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-              >
-                <option value="topic">A topic (AI picks the angle)</option>
-                <option value="woo_product">
-                  One product from the shop (photo + buy buttons)
-                </option>
-                <option value="woo_products">
-                  Several products, roundup (3, each with photo + buy buttons)
-                </option>
-              </select>
-              <span className="text-[10px] text-muted-foreground">
-                Product options need a WooCommerce shop on the client&apos;s
-                website (no WordPress connection needed to write them).
-                Products come from that shop&apos;s catalogue. Each run mixes products matching the
-                keywords below, the newest arrivals and a random pick, and
-                skips products used recently.
-              </span>
-            </label>
-          )}
-
-          {selectedKind === "blog_draft" && blogSource !== "topic" && (
-            <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">Main button text</span>
-                <input
-                  name="buttonText"
-                  placeholder="Buy now (default: AI writes it in the article's language)"
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </label>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">Second button text</span>
-                <input
-                  name="buttonText2"
-                  placeholder="See details"
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              </label>
-            </div>
-          )}
-
-          {selectedKind === "social_post" && (
-            <>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">Post about</span>
-                <select
-                  name="socialSource"
-                  value={socialSource}
-                  onChange={(e) => setSocialSource(e.target.value)}
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="topic">A topic (AI picks the angle)</option>
-                  <option value="woo_product">
-                    A product from the shop (link + photo)
-                  </option>
-                </select>
-              </label>
-              {socialSource === "woo_product" && (
-                <label className="space-y-1 text-xs">
-                  <span className="text-muted-foreground">
-                    Call-to-action text
-                  </span>
-                  <input
-                    name="buttonText"
-                    placeholder="Shop now (default: AI writes it in the post's language)"
-                    className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                  />
-                  <span className="text-[10px] text-muted-foreground">
-                    Added before the product link at the end of every
-                    variant.
-                  </span>
-                </label>
-              )}
-            </>
-          )}
-
-          {selectedKind !== "internal_checklist" && (
-            <label className="space-y-1 text-xs">
-              <span className="text-muted-foreground">Keywords</span>
-              <select
-                name="keywordsMode"
-                value={keywordsMode}
-                onChange={(e) => setKeywordsMode(e.target.value)}
-                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-              >
-                <option value="top">Top tracked keywords (best ranking)</option>
-                <option value="custom">Only the keywords I type</option>
-              </select>
-              {keywordsMode === "custom" && (
-                <input
-                  name="keywordsCustom"
-                  placeholder="espresso machine, coffee grinder, …"
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-              )}
-              <span className="text-[10px] text-muted-foreground">
-                Used in the text and to choose which products to feature.
-                {keywordsMode === "top" &&
-                  (trackedKeywords.length > 0
-                    ? ` Tracked now: ${trackedKeywords.slice(0, 8).join(", ")}${trackedKeywords.length > 8 ? "…" : ""}`
-                    : " This client has no tracked keywords yet — add some under Tracked keywords.")}
-              </span>
-            </label>
-          )}
-
-          {selectedKind === "gbp_post" && selectedDestination === "gbp" && (
-            <>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">
-                  GBP location name
-                </span>
-                <input
-                  name="gbpLocationName"
-                  placeholder="Leave empty to use the client’s listing"
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                />
-                <span className="text-[10px] text-muted-foreground">
-                  Optional override (accounts/…/locations/…). By default
-                  posts go to the listing chosen on this client’s GBP →
-                  Reviews page.
-                </span>
-              </label>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">Content</span>
-                <select
-                  name="gbpSource"
-                  defaultValue="topic"
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="topic">Topic post (AI picks the angle)</option>
-                  <option value="woo_product">
-                    Product from the shop (photo + Shop button)
-                  </option>
-                </select>
-                <span className="text-[10px] text-muted-foreground">
-                  Product posts read the WooCommerce catalogue on the
-                  client&apos;s website and rotate through in-stock products.
-                </span>
-              </label>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">Post length</span>
-                <select
-                  name="maxChars"
-                  defaultValue="300"
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="300">Short (≤ 300 characters)</option>
-                  <option value="600">Medium (≤ 600 characters)</option>
-                  <option value="1000">Long (≤ 1000 characters)</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">Button</span>
-                <select
-                  name="ctaType"
-                  defaultValue="auto"
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="auto">
-                    Auto (Shop for products, AI picks for topics)
-                  </option>
-                  <option value="SHOP">Shop</option>
-                  <option value="ORDER">Order online</option>
-                  <option value="LEARN_MORE">Learn more</option>
-                  <option value="BOOK">Book</option>
-                  <option value="SIGN_UP">Sign up</option>
-                  <option value="CALL">Call now</option>
-                </select>
-                <span className="text-[10px] text-muted-foreground">
-                  Product posts link the button to the product page; topic
-                  posts to the website. Offer posts use &quot;View
-                  offer&quot; instead.
-                </span>
-              </label>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">Post type</span>
-                <select
-                  name="postType"
-                  value={postType}
-                  onChange={(e) => setPostType(e.target.value)}
-                  className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="STANDARD">Standard update</option>
-                  <option value="EVENT">Event (posts as a standard update for now)</option>
-                  <option value="OFFER">
-                    Offer (&quot;View offer&quot; links to the product)
-                  </option>
-                </select>
-              </label>
-              {postType === "OFFER" && (
-                <label className="space-y-1 text-xs">
-                  <span className="text-muted-foreground">
-                    Coupon code (optional)
-                  </span>
-                  <input
-                    name="offerCoupon"
-                    placeholder="e.g. FALL10"
-                    className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
-                  />
-                  <span className="text-[10px] text-muted-foreground">
-                    Offers run for 7 days. Product posts link the offer to
-                    the product page; topic posts link to the website.
-                  </span>
-                </label>
-              )}
-            </>
-          )}
-
-          {selectedDestination !== "local" && (
-            <label className="flex items-start gap-2 text-xs">
-              <input
-                type="checkbox"
-                name="autoPublish"
-                className="mt-0.5 size-4 rounded border-white/20 bg-card/60"
-              />
-              <span>
-                <span className="block font-medium">Auto-publish</span>
-                <span className="block text-[10px] text-muted-foreground">
-                  Skip the review queue and publish directly each run. Keep
-                  this OFF until you trust the prompts.
-                  {selectedKind === "blog_draft" &&
-                    " (When OFF, posts land as WP drafts; when ON, as published.)"}
-                </span>
-              </span>
-            </label>
-          )}
-
-          {state && !state.ok && (
-            <p className="rounded-md bg-rose-500/10 px-3 py-2 text-xs text-rose-300 ring-1 ring-inset ring-rose-500/30">
-              {state.error}
-            </p>
-          )}
-
-          <div className="flex items-center gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="inline-flex h-10 items-center rounded-md bg-cyan-500/15 px-5 text-sm font-medium text-cyan-300 ring-1 ring-inset ring-cyan-500/30 hover:bg-cyan-500/25 disabled:opacity-50"
-            >
-              {pending ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                <>
-                  <Calendar className="mr-2 size-4" />
-                  Create schedule
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            New schedules generate their first item on the next agent tick
-            (≤24h, or click &quot;Run now&quot; on the row after saving).
-          </p>
-        </form>
+        <ScheduleForm
+          clientId={clientId}
+          wpConnected={wpConnected}
+          trackedKeywords={trackedKeywords}
+          onClose={() => setShowForm(false)}
+        />
       )}
     </div>
+  );
+}
+
+/** Config shape stored on a schedule (see parseScheduleForm in actions.ts). */
+type ScheduleConfig = {
+  topic_seed?: string;
+  tone?: string;
+  destination?: string;
+  gbp_location_name?: string;
+  post_type?: string;
+  gbp_source?: string;
+  max_chars?: number;
+  blog_source?: string;
+  offer_coupon?: string;
+  social_source?: string;
+  keywords_mode?: string;
+  keywords_custom?: string[];
+  cta_type?: string;
+  button_text?: string;
+  button_text_2?: string;
+};
+
+const POST_LENGTHS = [300, 600, 1000];
+
+/**
+ * Create a schedule, or — when `schedule` is passed — edit that one in
+ * place. The kind is fixed while editing; every other field is prefilled.
+ */
+function ScheduleForm({
+  clientId,
+  wpConnected,
+  trackedKeywords,
+  schedule,
+  onClose,
+}: {
+  clientId: number;
+  wpConnected: boolean;
+  trackedKeywords: string[];
+  schedule?: DailySchedule;
+  onClose: () => void;
+}) {
+  const editing = Boolean(schedule);
+  const cfg = (schedule?.configJson ?? {}) as ScheduleConfig;
+  const savedLength = cfg.max_chars ?? 300;
+  // Schedules saved before the 1500 cap was dropped fall to the nearest option.
+  const initialLength = String(
+    POST_LENGTHS.find((n) => n >= savedLength) ?? POST_LENGTHS.at(-1),
+  );
+
+  const [selectedKind, setSelectedKind] = useState<Kind>(
+    schedule?.kind ?? "blog_draft",
+  );
+  const [postType, setPostType] = useState(cfg.post_type ?? "STANDARD");
+  const [blogSource, setBlogSource] = useState(cfg.blog_source ?? "topic");
+  const [socialSource, setSocialSource] = useState(cfg.social_source ?? "topic");
+  const [keywordsMode, setKeywordsMode] = useState(cfg.keywords_mode ?? "top");
+  const [selectedDestination, setSelectedDestination] = useState<Destination>(
+    (cfg.destination as Destination | undefined) ?? "local",
+  );
+  const [state, formAction, pending] = useActionState<
+    CreateScheduleState,
+    FormData
+  >(editing ? updateSchedule : createSchedule, null);
+
+  // What destinations are valid for the selected kind? Social + checklist
+  // are local-only by design.
+  const allowedDestinations: Destination[] =
+    selectedKind === "blog_draft"
+      ? ["local", "wordpress"]
+      : selectedKind === "gbp_post"
+        ? ["local", "gbp"]
+        : ["local"];
+
+  // If the user switches to a kind where the current destination is no
+  // longer valid, snap back to local.
+  //
+  // Resolved during render rather than in an effect. Whether the current
+  // destination is still valid is a pure function of the two state
+  // values above, so there is nothing to synchronise after the fact —
+  // and the effect version let one frame commit with the dropdown
+  // showing a value that wasn't in its own option list before correcting
+  // itself. React discards this render and restarts before paint.
+  const destinationValid = allowedDestinations.includes(selectedDestination);
+  if (!destinationValid) {
+    setSelectedDestination("local");
+  }
+
+  // Close the edit form once the changes are saved.
+  useEffect(() => {
+    if (editing && state?.ok) {
+      toast.success("Schedule updated.");
+      onClose();
+    }
+  }, [editing, state, onClose]);
+
+  return (
+    <form
+      action={formAction}
+      className="glass-apple relative overflow-hidden rounded-2xl p-5 space-y-4"
+    >
+      <input type="hidden" name="clientId" value={clientId} />
+      {schedule && (
+        <input type="hidden" name="scheduleId" value={schedule.id} />
+      )}
+
+      <div>
+        <label className="text-sm font-semibold">What to automate</label>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          {editing
+            ? "The kind is fixed — create a new schedule to automate something else."
+            : "Pick the kind first — the form below adapts."}
+        </p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {(Object.keys(KIND_META) as Kind[])
+            .filter((k) => !editing || k === selectedKind)
+            .map((k) => {
+            const meta = KIND_META[k];
+            const active = selectedKind === k;
+            const Icon = meta.icon;
+            return (
+              <label
+                key={k}
+                className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors ${
+                  active
+                    ? meta.activeBorder
+                    : "border-white/10 hover:bg-white/[0.03]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="kind"
+                  value={k}
+                  checked={active}
+                  onChange={() => setSelectedKind(k)}
+                  className="sr-only"
+                />
+                <Icon className={`size-4 shrink-0 mt-0.5 ${meta.iconCls}`} />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">
+                    {meta.label}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {meta.description}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Destination */}
+      <div>
+        <label className="text-sm font-semibold">
+          Where should approved items go?
+        </label>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          Local = stays in the review queue for you to copy/paste. No
+          connection needed.
+        </p>
+        <input
+          type="hidden"
+          name="destination"
+          value={selectedDestination}
+        />
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          <DestinationRadio
+            value="local"
+            title="Save in this tool"
+            description="Draft lives in the queue. Copy to clipboard or download as Markdown / HTML."
+            active={selectedDestination === "local"}
+            disabled={false}
+            onClick={() => setSelectedDestination("local")}
+          />
+          {allowedDestinations.includes("wordpress") && (
+            <DestinationRadio
+              value="wordpress"
+              title="Publish to WordPress"
+              description={
+                wpConnected
+                  ? "Auto-creates a post via the SEO Tool Bridge plugin."
+                  : "Requires the WP bridge — set it up under the WordPress section below."
+              }
+              active={selectedDestination === "wordpress"}
+              disabled={!wpConnected}
+              onClick={() => wpConnected && setSelectedDestination("wordpress")}
+            />
+          )}
+          {allowedDestinations.includes("gbp") && (
+            <DestinationRadio
+              value="gbp"
+              title="Publish to GBP"
+              description="Auto-posts via the Google Business Profile API. Location name required below."
+              active={selectedDestination === "gbp"}
+              disabled={false}
+              onClick={() => setSelectedDestination("gbp")}
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1 text-xs">
+          <span className="text-muted-foreground">Cadence</span>
+          <select
+            name="cadenceDays"
+            defaultValue={String(schedule?.cadenceDays ?? 1)}
+            className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+          >
+            <option value="1">Daily</option>
+            <option value="7">Weekly</option>
+            <option value="14">Every 2 weeks</option>
+            <option value="30">Monthly</option>
+          </select>
+        </label>
+        <label className="space-y-1 text-xs">
+          <span className="text-muted-foreground">
+            Run time (UTC) — HHMM
+          </span>
+          <input
+            type="number"
+            name="timeUtc"
+            defaultValue={schedule?.timeUtc ?? 900}
+            min={0}
+            max={2359}
+            step={100}
+            className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+        </label>
+      </div>
+
+      <label className="space-y-1 text-xs">
+        <span className="text-muted-foreground">Topic seed / focus</span>
+        <input
+          name="topicSeed"
+          defaultValue={cfg.topic_seed ?? ""}
+          placeholder={
+            selectedKind === "blog_draft"
+              ? "espresso accessories for home baristas"
+              : selectedKind === "gbp_post"
+                ? "new fall menu launch"
+                : "weekly business tips"
+          }
+          className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+        />
+        <span className="text-[10px] text-muted-foreground">
+          The AI uses this as the starting angle each run. Leave blank to
+          let the AI pick freely from the client&apos;s niche.
+        </span>
+      </label>
+
+      <label className="space-y-1 text-xs">
+        <span className="text-muted-foreground">Tone</span>
+        <input
+          name="tone"
+          defaultValue={cfg.tone ?? ""}
+          placeholder="professional, plain English"
+          className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+        />
+      </label>
+
+      {selectedKind === "blog_draft" && (
+        <label className="space-y-1 text-xs">
+          <span className="text-muted-foreground">Article about</span>
+          <select
+            name="blogSource"
+            value={blogSource}
+            onChange={(e) => setBlogSource(e.target.value)}
+            className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+          >
+            <option value="topic">A topic (AI picks the angle)</option>
+            <option value="woo_product">
+              One product from the shop (photo + buy buttons)
+            </option>
+            <option value="woo_products">
+              Several products, roundup (3, each with photo + buy buttons)
+            </option>
+          </select>
+          <span className="text-[10px] text-muted-foreground">
+            Product options need a WooCommerce shop on the client&apos;s
+            website (no WordPress connection needed to write them).
+            Products come from that shop&apos;s catalogue. Each run mixes products matching the
+            keywords below, the newest arrivals and a random pick, and
+            skips products used recently.
+          </span>
+        </label>
+      )}
+
+      {selectedKind === "blog_draft" && blogSource !== "topic" && (
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Main button text</span>
+            <input
+              name="buttonText"
+              defaultValue={cfg.button_text ?? ""}
+              placeholder="Buy now (default: AI writes it in the article's language)"
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Second button text</span>
+            <input
+              name="buttonText2"
+              defaultValue={cfg.button_text_2 ?? ""}
+              placeholder="See details"
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          </label>
+        </div>
+      )}
+
+      {selectedKind === "social_post" && (
+        <>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Post about</span>
+            <select
+              name="socialSource"
+              value={socialSource}
+              onChange={(e) => setSocialSource(e.target.value)}
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            >
+              <option value="topic">A topic (AI picks the angle)</option>
+              <option value="woo_product">
+                A product from the shop (link + photo)
+              </option>
+            </select>
+          </label>
+          {socialSource === "woo_product" && (
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">
+                Call-to-action text
+              </span>
+              <input
+                name="buttonText"
+                defaultValue={cfg.button_text ?? ""}
+                placeholder="Shop now (default: AI writes it in the post's language)"
+                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <span className="text-[10px] text-muted-foreground">
+                Added before the product link at the end of every
+                variant.
+              </span>
+            </label>
+          )}
+        </>
+      )}
+
+      {selectedKind !== "internal_checklist" && (
+        <label className="space-y-1 text-xs">
+          <span className="text-muted-foreground">Keywords</span>
+          <select
+            name="keywordsMode"
+            value={keywordsMode}
+            onChange={(e) => setKeywordsMode(e.target.value)}
+            className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+          >
+            <option value="top">Top tracked keywords (best ranking)</option>
+            <option value="custom">Only the keywords I type</option>
+          </select>
+          {keywordsMode === "custom" && (
+            <input
+              name="keywordsCustom"
+              defaultValue={(cfg.keywords_custom ?? []).join(", ")}
+              placeholder="espresso machine, coffee grinder, …"
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          )}
+          <span className="text-[10px] text-muted-foreground">
+            Used in the text and to choose which products to feature.
+            {keywordsMode === "top" &&
+              (trackedKeywords.length > 0
+                ? ` Tracked now: ${trackedKeywords.slice(0, 8).join(", ")}${trackedKeywords.length > 8 ? "…" : ""}`
+                : " This client has no tracked keywords yet — add some under Tracked keywords.")}
+          </span>
+        </label>
+      )}
+
+      {selectedKind === "gbp_post" && (
+        <>
+          {selectedDestination === "gbp" && (
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">
+                GBP location name
+              </span>
+              <input
+                name="gbpLocationName"
+                defaultValue={cfg.gbp_location_name ?? ""}
+                placeholder="Leave empty to use the client’s listing"
+                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <span className="text-[10px] text-muted-foreground">
+                Optional override (accounts/…/locations/…). By default
+                posts go to the listing chosen on this client’s GBP →
+                Reviews page.
+              </span>
+            </label>
+          )}
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Content</span>
+            <select
+              name="gbpSource"
+              defaultValue={cfg.gbp_source ?? "topic"}
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            >
+              <option value="topic">Topic post (AI picks the angle)</option>
+              <option value="woo_product">
+                Product from the shop (photo + Shop button)
+              </option>
+            </select>
+            <span className="text-[10px] text-muted-foreground">
+              Product posts read the WooCommerce catalogue on the
+              client&apos;s website and rotate through in-stock products.
+            </span>
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Post length</span>
+            <select
+              name="maxChars"
+              defaultValue={initialLength}
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            >
+              <option value="300">Short (≤ 300 characters)</option>
+              <option value="600">Medium (≤ 600 characters)</option>
+              <option value="1000">Long (≤ 1000 characters)</option>
+            </select>
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Button</span>
+            <select
+              name="ctaType"
+              defaultValue={cfg.cta_type ?? "auto"}
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            >
+              <option value="auto">
+                Auto (Shop for products, AI picks for topics)
+              </option>
+              <option value="SHOP">Shop</option>
+              <option value="ORDER">Order online</option>
+              <option value="LEARN_MORE">Learn more</option>
+              <option value="BOOK">Book</option>
+              <option value="SIGN_UP">Sign up</option>
+              <option value="CALL">Call now</option>
+            </select>
+            <span className="text-[10px] text-muted-foreground">
+              Product posts link the button to the product page; topic
+              posts to the website. Offer posts use &quot;View
+              offer&quot; instead.
+            </span>
+          </label>
+          <label className="space-y-1 text-xs">
+            <span className="text-muted-foreground">Post type</span>
+            <select
+              name="postType"
+              value={postType}
+              onChange={(e) => setPostType(e.target.value)}
+              className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+            >
+              <option value="STANDARD">Standard update</option>
+              <option value="EVENT">Event (posts as a standard update for now)</option>
+              <option value="OFFER">
+                Offer (&quot;View offer&quot; links to the product)
+              </option>
+            </select>
+          </label>
+          {postType === "OFFER" && (
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">
+                Coupon code (optional)
+              </span>
+              <input
+                name="offerCoupon"
+                defaultValue={cfg.offer_coupon ?? ""}
+                placeholder="e.g. FALL10"
+                className="h-9 w-full rounded-md border border-white/10 bg-card/60 px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <span className="text-[10px] text-muted-foreground">
+                Offers run for 7 days. Product posts link the offer to
+                the product page; topic posts link to the website.
+              </span>
+            </label>
+          )}
+        </>
+      )}
+
+      {selectedDestination !== "local" && (
+        <label className="flex items-start gap-2 text-xs">
+          <input
+            type="checkbox"
+            name="autoPublish"
+            defaultChecked={schedule?.autoPublish ?? false}
+            className="mt-0.5 size-4 rounded border-white/20 bg-card/60"
+          />
+          <span>
+            <span className="block font-medium">Auto-publish</span>
+            <span className="block text-[10px] text-muted-foreground">
+              Skip the review queue and publish directly each run. Keep
+              this OFF until you trust the prompts.
+              {selectedKind === "blog_draft" &&
+                " (When OFF, posts land as WP drafts; when ON, as published.)"}
+            </span>
+          </span>
+        </label>
+      )}
+
+      {state && !state.ok && (
+        <p className="rounded-md bg-rose-500/10 px-3 py-2 text-xs text-rose-300 ring-1 ring-inset ring-rose-500/30">
+          {state.error}
+        </p>
+      )}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex h-10 items-center rounded-md bg-cyan-500/15 px-5 text-sm font-medium text-cyan-300 ring-1 ring-inset ring-cyan-500/30 hover:bg-cyan-500/25 disabled:opacity-50"
+        >
+          {pending ? (
+            <>
+              <Loader2 className="mr-2 size-4 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Calendar className="mr-2 size-4" />
+              {editing ? "Save changes" : "Create schedule"}
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        {editing
+          ? "Changes apply from the next run. Items already in the queue are kept."
+          : "New schedules generate their first item on the next agent tick (≤24h, or click “Run now” on the row after saving)."}
+      </p>
+    </form>
   );
 }
 
 function ScheduleRow({
   schedule,
   clientId,
+  onEdit,
 }: {
   schedule: DailySchedule;
   clientId: number;
+  onEdit: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
   const meta = KIND_META[schedule.kind];
   const Icon = meta.icon;
-  const cfg = (schedule.configJson ?? {}) as {
-    topic_seed?: string;
-    tone?: string;
-    gbp_location_name?: string;
-    post_type?: string;
-    gbp_source?: string;
-    max_chars?: number;
-    blog_source?: string;
-    offer_coupon?: string;
-    social_source?: string;
-    keywords_mode?: string;
-    keywords_custom?: string[];
-    cta_type?: string;
-    button_text?: string;
-  };
+  const cfg = (schedule.configJson ?? {}) as ScheduleConfig;
 
   return (
     <li className="glass-apple relative overflow-hidden rounded-2xl p-4">
@@ -722,6 +824,16 @@ function ScheduleRow({
               Resume
             </>
           )}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={onEdit}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white/5 px-3 text-xs ring-1 ring-inset ring-white/10 hover:bg-white/10 disabled:opacity-50"
+          title="Edit this schedule"
+        >
+          <Pencil className="size-3" />
+          Edit
         </button>
         <button
           type="button"

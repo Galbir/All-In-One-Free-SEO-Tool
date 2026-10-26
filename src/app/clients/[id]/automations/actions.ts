@@ -12,11 +12,38 @@ export type CreateScheduleState =
   | { ok: false; error: string }
   | null;
 
-export async function createSchedule(
-  _prev: CreateScheduleState,
+/** Config keys the schedule form owns (everything parseScheduleForm can set). */
+const FORM_CONFIG_KEYS = [
+  "destination",
+  "keywords_mode",
+  "keywords_custom",
+  "blog_source",
+  "social_source",
+  "button_text",
+  "button_text_2",
+  "topic_seed",
+  "tone",
+  "gbp_location_name",
+  "post_type",
+  "gbp_source",
+  "max_chars",
+  "cta_type",
+  "offer_coupon",
+] as const;
+
+type ParsedSchedule = {
+  clientId: number;
+  kind: NewDailySchedule["kind"];
+  cadenceDays: number;
+  timeUtc: number;
+  autoPublish: boolean;
+  config: Record<string, unknown>;
+};
+
+/** Read + validate the schedule form; shared by create and edit. */
+async function parseScheduleForm(
   formData: FormData,
-): Promise<CreateScheduleState> {
-  await guardAction("edit", formData.get("clientId"));
+): Promise<{ ok: true; values: ParsedSchedule } | { ok: false; error: string }> {
   const clientId = Number(formData.get("clientId"));
   const kind = String(formData.get("kind") ?? "");
   const cadenceDays = Math.max(1, Math.min(90, Number(formData.get("cadenceDays") ?? 1)));
@@ -188,9 +215,32 @@ export async function createSchedule(
     if (postType === "OFFER" && offerCoupon) config.offer_coupon = offerCoupon;
   }
 
+  return {
+    ok: true,
+    values: {
+      clientId,
+      kind: kind as NewDailySchedule["kind"],
+      cadenceDays,
+      timeUtc,
+      autoPublish,
+      config,
+    },
+  };
+}
+
+export async function createSchedule(
+  _prev: CreateScheduleState,
+  formData: FormData,
+): Promise<CreateScheduleState> {
+  await guardAction("edit", formData.get("clientId"));
+  const parsed = await parseScheduleForm(formData);
+  if (!parsed.ok) return parsed;
+  const { clientId, kind, cadenceDays, timeUtc, autoPublish, config } =
+    parsed.values;
+
   const insert: NewDailySchedule = {
     clientId,
-    kind: kind as NewDailySchedule["kind"],
+    kind,
     cadenceDays,
     timeUtc,
     autoPublish,
@@ -205,6 +255,72 @@ export async function createSchedule(
     .returning({ id: dailySchedules.id });
   revalidatePath(`/clients/${clientId}/automations`);
   return { ok: true, id: row.id };
+}
+
+/** Next UTC occurrence of HHMM: later today if it hasn't passed, else tomorrow. */
+function nextOccurrenceUtc(timeUtc: number, from: Date = new Date()): Date {
+  const next = new Date(from.getTime());
+  next.setUTCHours(Math.floor(timeUtc / 100), timeUtc % 100, 0, 0);
+  if (next.getTime() <= from.getTime()) next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+/**
+ * Edit an existing schedule in place. The kind is fixed (a blog schedule
+ * can't become a GBP one — create a new schedule for that); everything
+ * else on the form can change. Its generated queue items are untouched.
+ */
+export async function updateSchedule(
+  _prev: CreateScheduleState,
+  formData: FormData,
+): Promise<CreateScheduleState> {
+  await guardAction("edit", formData.get("clientId"));
+  const scheduleId = Number(formData.get("scheduleId"));
+  const parsed = await parseScheduleForm(formData);
+  if (!parsed.ok) return parsed;
+  const { clientId, kind, cadenceDays, timeUtc, autoPublish, config } =
+    parsed.values;
+
+  const [existing] = await db
+    .select()
+    .from(dailySchedules)
+    .where(
+      and(
+        eq(dailySchedules.id, scheduleId),
+        eq(dailySchedules.clientId, clientId),
+      ),
+    )
+    .limit(1);
+  if (!existing) return { ok: false, error: "That schedule no longer exists." };
+  if (existing.kind !== kind) {
+    return {
+      ok: false,
+      error: "A schedule's kind can't be changed — create a new schedule instead.",
+    };
+  }
+
+  // Keep any keys the form doesn't manage; the form's own keys are replaced
+  // wholesale so a cleared field really clears.
+  const nextConfig = { ...((existing.configJson ?? {}) as Record<string, unknown>) };
+  for (const key of FORM_CONFIG_KEYS) delete nextConfig[key];
+  Object.assign(nextConfig, config);
+
+  const timingChanged =
+    existing.cadenceDays !== cadenceDays || existing.timeUtc !== timeUtc;
+  await db
+    .update(dailySchedules)
+    .set({
+      cadenceDays,
+      timeUtc,
+      autoPublish,
+      configJson: nextConfig,
+      // A new time/cadence should apply to the next run, not the old slot
+      ...(timingChanged ? { nextRunAt: nextOccurrenceUtc(timeUtc) } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(dailySchedules.id, scheduleId));
+  revalidatePath(`/clients/${clientId}/automations`);
+  return { ok: true, id: scheduleId };
 }
 
 export async function toggleScheduleEnabled(
