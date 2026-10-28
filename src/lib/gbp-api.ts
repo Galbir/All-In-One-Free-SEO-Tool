@@ -449,6 +449,17 @@ export async function createGbpLocalPost(opts: {
     url?: string;
   };
   mediaUrl?: string;
+  /** EVENT needs fields we don't collect, so only STANDARD and OFFER */
+  topicType?: "STANDARD" | "OFFER";
+  /** Required with topicType OFFER: Google shows it as "View offer" */
+  offer?: {
+    title: string;
+    redeemOnlineUrl: string;
+    startDate: Date;
+    endDate: Date;
+    couponCode?: string;
+    termsConditions?: string;
+  };
   /** BCP-47 language of the post; defaults to English. */
   languageCode?: string;
   clientIdScope?: number;
@@ -473,13 +484,36 @@ export async function createGbpLocalPost(opts: {
   const body: Record<string, unknown> = {
     languageCode: opts.languageCode?.trim() || "en",
     summary,
-    // OFFER and EVENT posts need fields (dates, coupon codes) that the
-    // schedule editor doesn't collect yet, so every post is STANDARD.
-    topicType: "STANDARD",
+    // EVENT needs fields (dates) the schedule editor doesn't collect, so
+    // only STANDARD and OFFER (product posts) are sent.
+    topicType: opts.topicType === "OFFER" && opts.offer ? "OFFER" : "STANDARD",
   };
-  // Google rejects every action type except CALL when it has no url,
-  // failing the whole post with 400 "invalid argument".
+  if (opts.topicType === "OFFER" && opts.offer) {
+    const ymd = (d: Date) => ({
+      year: d.getUTCFullYear(),
+      month: d.getUTCMonth() + 1,
+      day: d.getUTCDate(),
+    });
+    // Offer title is capped at 58 chars by Google
+    body.event = {
+      title: opts.offer.title.slice(0, 58),
+      schedule: {
+        startDate: ymd(opts.offer.startDate),
+        endDate: ymd(opts.offer.endDate),
+      },
+    };
+    body.offer = {
+      redeemOnlineUrl: opts.offer.redeemOnlineUrl,
+      ...(opts.offer.couponCode ? { couponCode: opts.offer.couponCode } : {}),
+      ...(opts.offer.termsConditions
+        ? { termsConditions: opts.offer.termsConditions }
+        : {}),
+    };
+  }
+  // Every actionType but CALL needs a url, or Google 400s the whole post.
+  // Offers carry their link in offer.redeemOnlineUrl instead of a button.
   if (
+    body.topicType !== "OFFER" &&
     opts.callToAction &&
     (opts.callToAction.actionType === "CALL" || opts.callToAction.url)
   ) {
