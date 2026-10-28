@@ -119,6 +119,7 @@ const TOOLS = [
       },
       required: ["clientId"],
     },
+    annotations: { readOnlyHint: true, openWorldHint: true },
     handler: (a: { clientId: number; limit?: number; refresh?: boolean }) =>
       getKeywordIdeas(a),
   },
@@ -426,9 +427,12 @@ const TOOLS = [
 /**
  * What each tool does to the world, for clients that gate on it.
  *
- * Everything here reads unless it says otherwise. Three tools do not:
- * `run_agent` and `apply_fix` change a live website, and
- * `revert_agent_action` changes it back. An assistant deciding whether
+ * Everything here reads unless it says otherwise, so a tool that omits
+ * `annotations` is declaring itself a lookup. Seven do say otherwise:
+ * `run_agent` and `apply_fix` change a live website,
+ * `revert_agent_action` changes it back and `reply_to_review` posts in
+ * public; `update_client_knowledge`, `save_review_draft` and
+ * `log_client_research` write to this install. An assistant deciding whether
  * to ask permission has no way to tell those from a lookup unless we say
  * so, and "rewrote the homepage title without asking" is not a mistake
  * worth finding out about afterwards.
