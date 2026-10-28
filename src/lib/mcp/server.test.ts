@@ -7,13 +7,15 @@
  * rewrite somebody's homepage title without asking, and the first anyone
  * hears of it is the page.
  *
- * The annotations default to read-only, which is right for nine of the
- * twelve tools and catastrophic for the other three — so the default is
- * exactly the thing that needs a test. The failure is silent by
- * construction: a wrong hint changes no behaviour here, only what
+ * The annotations default to read-only, which is right for the sixteen
+ * tools that read and catastrophic for the seven that write — so the
+ * default is exactly the thing that needs a test. The failure is silent
+ * by construction: a wrong hint changes no behaviour here, only what
  * somebody else's client decides to do with it.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MCP_TOOL_LIST, READ_ONLY_TOOLS } from "./server";
 
@@ -66,7 +68,7 @@ describe("tool annotations", () => {
 
   it("gives every tool an annotation", () => {
     // Guards the guard: an empty or partial list passes everything above.
-    expect(MCP_TOOL_LIST.length).toBeGreaterThanOrEqual(12);
+    expect(MCP_TOOL_LIST.length).toBeGreaterThanOrEqual(20);
     for (const t of MCP_TOOL_LIST) {
       expect(t.annotations, t.name).toBeDefined();
       expect(typeof t.annotations.readOnlyHint, t.name).toBe("boolean");
@@ -122,6 +124,24 @@ describe("what a read-only connection can reach", () => {
     for (const n of ["list_clients", "get_client_overview", "list_audit_issues", "compare_search_periods"]) {
       expect(names, n).toContain(n);
     }
+  });
+
+  it("matches the tool count the README advertises", () => {
+    // The README said 22 while the list held 23: #51 added a tool and
+    // updated docs/mcp-server.md but not the headline number. Rule four
+    // of this codebase is never a second hardcoded copy of something
+    // that already exists — and where one has to exist, test it.
+    const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
+    const claimed = readme.match(/\*\*(\d+) tools\*\*/);
+    if (!claimed) {
+      throw new Error(
+        "README no longer states a '**N tools**' count. If that is " +
+          "deliberate, delete this test; do not leave it passing vacuously.",
+      );
+    }
+    expect(Number(claimed[1]), "README tool count is stale").toBe(
+      MCP_TOOL_LIST.length,
+    );
   });
 
   it("is smaller than the full list, and not empty", () => {
