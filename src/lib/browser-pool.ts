@@ -65,6 +65,70 @@ async function refreshMaxConcurrencyCache(): Promise<void> {
   lastMaxRefreshAt = Date.now();
 }
 
+/**
+ * What to tell someone whose Chromium is missing — which depends entirely
+ * on how they installed, and used to assume one answer.
+ *
+ * Issue #37 was a Windows user told to run a terminal command after
+ * installing by double-clicking a launcher. The fix pointed them at the
+ * launcher's new button. Then issue #47 arrived from a **Docker** install
+ * on Linux — paths under `/app`, no Desktop, no launcher — and was told
+ * to press that button. Fixing a message for one install mode by
+ * hardcoding that mode just moves the problem to the next person.
+ *
+ * On Docker the cause is different too, and the advice has to match it.
+ * The image is `mcr.microsoft.com/playwright:vX-noble`, which ships the
+ * browsers for exactly that Playwright release. If `playwright` in
+ * package.json names a different version, it looks for a browser
+ * revision the image does not contain — so "not installed" means the
+ * image is stale, and `playwright install` inside a running container
+ * fixes it only until the container is recreated.
+ */
+/**
+ * The service name in docker-compose.yml. Written out here because the
+ * message quotes a command the reader will paste, and `docker compose
+ * exec app ...` — which this said first — fails with "no such service".
+ * A guard in missing-browser-message.test.ts reads the compose file and
+ * fails if the two stop matching.
+ */
+export const COMPOSE_SERVICE = "seo";
+
+export function missingBrowserMessage(
+  env: { docker?: boolean; platform?: string } = {},
+): string {
+  const docker = env.docker ?? process.env.RUNNING_IN_DOCKER === "1";
+  const platform = env.platform ?? process.platform;
+  const scope =
+    "(Only rank checks, SERP scraping and screenshots need it — audits and content tools work without it.)";
+
+  if (docker) {
+    return (
+      "The headless browser is missing from this container. That usually means " +
+      "the image was built before the current Playwright version, so it carries " +
+      "browsers for a different release. Rebuild it: `docker compose up -d --build`. " +
+      `${scope} ` +
+      "To get going again without a rebuild, run " +
+      `\`docker compose exec ${COMPOSE_SERVICE} npx playwright install chromium\` — but that is ` +
+      "undone the next time the container is recreated."
+    );
+  }
+
+  if (platform === "win32") {
+    return (
+      'The headless browser isn\'t installed yet. Open the SEO Tool launcher on ' +
+      'your Desktop and press "Install headless browser", then try again. ' +
+      `${scope} ` +
+      "If you prefer a terminal: `npx playwright install chromium` in the tool's folder."
+    );
+  }
+
+  return (
+    "The headless browser isn't installed yet. Run " +
+    "`npx playwright install chromium` in the tool's folder, then try again. " +
+    `${scope}`
+  );
+}
+
 function getMaxConcurrencySync(): number {
   // Trigger a background refresh if stale. Don't await — the cached
   // value is good enough for this acquire; the next one will see the
@@ -208,17 +272,12 @@ async function getBrowser(): Promise<Browser> {
     cachedBrowser = await browserPromise;
   } catch (err) {
     const message = (err as Error).message ?? String(err);
+    // See missingBrowserMessage() below for why this is not one sentence.
     // Playwright's own wording here is good but buried in a stack. Say
     // the fix on the first line, because this is the most likely error
     // anyone hits on a fresh install.
     if (/executable doesn't exist|please run the following command/i.test(message)) {
-      throw new Error(
-        "The headless browser isn't installed yet. Open the SEO Tool launcher " +
-          "on your Desktop and press \"Install headless browser\", then try again. " +
-          "(Only rank checks, SERP scraping and screenshots need it — audits and " +
-          "content tools work without it.) " +
-          "If you prefer a terminal: `npx playwright install chromium` in the tool's folder.",
-      );
+      throw new Error(missingBrowserMessage());
     }
     throw err;
   }
