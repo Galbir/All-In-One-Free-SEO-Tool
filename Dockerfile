@@ -1,9 +1,20 @@
 # Multi-stage Dockerfile — built on Playwright's official image so the
 # Chromium + system deps for headless rank checking + SERP scanning + GBP
 # scraping work out of the box.
+#
+# The tag MUST match the `playwright` version in package.json. The image
+# ships the browser build for exactly its own release, and Playwright looks
+# for a revision directory named after the version it was built against —
+# so a mismatch means Chromium is present but invisible, and the app reports
+# "the headless browser isn't installed".
+#
+# That is issue #47: the image sat at v1.56.0 while package.json moved to
+# 1.59.1, which broke rank checks, SERP scraping and screenshots on every
+# Docker install. docker-playwright-version.test.ts fails the build if these
+# two drift again.
 
 # ---- deps stage: install only what npm needs to resolve ----
-FROM mcr.microsoft.com/playwright:v1.56.0-noble AS deps
+FROM mcr.microsoft.com/playwright:v1.59.1-noble AS deps
 WORKDIR /app
 
 # pnpm via corepack.
@@ -59,7 +70,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm config set verify-deps-before-run false && pnpm build
 
 # ---- runtime stage ----
-FROM mcr.microsoft.com/playwright:v1.56.0-noble AS runner
+FROM mcr.microsoft.com/playwright:v1.59.1-noble AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
