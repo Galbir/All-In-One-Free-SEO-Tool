@@ -65,7 +65,7 @@ A typical SEO professional pays **₹25,000-₹45,000 per month** ($300-$540) fo
 > Two things are **not** free data, and you should know that before you switch:
 >
 > - **Backlink index.** Ahrefs and Semrush operate their own web crawlers, and that index is the single biggest thing you pay them for. This tool uses Search Console's backlink data (your own sites only) plus Common Crawl — useful, but not a substitute for a commercial index. If backlink research is core to your work, keep a paid tool or pair this with the free Ahrefs Webmaster Tools.
-> - **Exact keyword search volumes.** There is no free source for real monthly volumes. This tool gives you a directional estimate from Trends, autocomplete and SERP signals, and shows you the raw inputs so you can judge it — it does not invent a number and present it as fact.
+> - **Exact keyword search volumes.** There is no keyless source for real monthly volumes. Out of the box this tool gives you a directional estimate from Trends, autocomplete and SERP signals, and shows you the raw inputs so you can judge it — it does not invent a number and present it as fact. For real numbers, connect a (free) Google Ads account and the tool uses Google's own Keyword Planner (see Integrations).
 >
 > Everything else, you can stop paying for.
 
@@ -279,6 +279,7 @@ The home view when you log in. Multi-client overview, today's priorities, and wh
 ✅ Keyword clustering by topic + intent  
 ✅ Difficulty estimate from SERP analysis  
 ✅ CSV import / export + Google Sheets sync  
+✅ **Google Keyword Planner** (optional, free Google Ads account) — real monthly searches and competition; finds keywords for you automatically, ranks them by demand, and feeds them to the daily agent, blog/GBP post automations and the MCP server
 ✅ Keyword history with annotations on key dates
 
 ### ✍️ Content
@@ -640,6 +641,13 @@ This SEO platform exists because every existing tool either costs ₹10,000+/mon
 - That's it. No other strings attached.
 
 A maintainer credit + "support this project" donation prompt is included in the app, but neither is a license requirement — you can strip them in your fork. Asking nicely: leaving the credit in place helps other SEOs find the project.
+
+---
+
+## 🙏 Credits
+
+- **[google-ads-api](https://github.com/Opteo/google-ads-api)** by [Opteo](https://opteo.com) (MIT) — the Google Ads client library behind the Keyword Planner integration.
+- **[gsc-mcp-lionkiii](https://github.com/lionkiii/google-searchconsole-mcp)** — the Search Console / Keyword Planner MCP server whose approach to Ads authentication this integration follows.
 
 ---
 

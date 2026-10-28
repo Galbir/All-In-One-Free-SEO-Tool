@@ -24,6 +24,13 @@ export const GOOGLE_SCOPES = [
   "openid",
 ] as const;
 
+/**
+ * Keyword Planner lives behind the Google Ads API, which needs its own
+ * scope. It has its own sign-in (`/api/google/auth?ads=1`) that stores
+ * its own refresh token, so the Search Console connection is untouched.
+ */
+export const GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
+
 export type GoogleConnectionStatus = {
   configured: boolean;
   connected: boolean;
@@ -135,15 +142,18 @@ export function buildAuthUrl(opts: {
   clientId: string;
   redirectUri: string;
   state?: string;
+  /** Ask for exactly these scopes instead of the default set. */
+  scopes?: readonly string[];
 }): string {
   const params = new URLSearchParams({
     client_id: opts.clientId,
     redirect_uri: opts.redirectUri,
     response_type: "code",
-    scope: GOOGLE_SCOPES.join(" "),
+    scope: (opts.scopes ?? GOOGLE_SCOPES).join(" "),
     access_type: "offline",
     prompt: "consent",
-    include_granted_scopes: "true",
+    // A scope-only sign-in (Google Ads) must not pull in earlier grants.
+    include_granted_scopes: opts.scopes ? "false" : "true",
   });
   if (opts.state) params.set("state", opts.state);
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;

@@ -84,6 +84,7 @@ the read-only token is refused when it tries to write.
 | `get_client_overview` | Audit score, open issues by severity, keywords tracked, what's connected. |
 | `list_audit_issues` | Technical problems from the latest crawl, filterable by severity and type. |
 | `get_keyword_rankings` | Positions and movement over a window, each with its source. |
+| `get_keyword_ideas` | Google Keyword Planner ideas with real monthly searches and competition (needs Google Ads connected). |
 | `get_ai_visibility` | Individual AI-assistant checks and their citations. |
 | `get_citation_landscape` | Which domains get cited for your topics, ranked, with your own share. "Who is being cited instead of me." |
 | `list_agent_actions` | What the agent changed, and whether it can still be undone. |

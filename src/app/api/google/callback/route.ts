@@ -89,6 +89,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(settingsUrl);
   }
 
+  // Google Ads has its own sign-in: keep its token apart from the Search
+  // Console one, and leave that connection as it was.
+  if (state.split("|").includes("ads")) {
+    await setSetting("google_ads.refresh_token", encrypt(tokens.refresh_token));
+    await logActivity({
+      kind: "google.connected",
+      message: "Connected Google Ads (Keyword Planner).",
+      level: "success",
+    });
+    if (isPopup) return popupResponse({ ok: true, email: null });
+    settingsUrl.searchParams.set("ads", "connected");
+    return NextResponse.redirect(settingsUrl);
+  }
+
   const expiresAt = Date.now() + tokens.expires_in * 1000;
 
   // Best-effort email lookup so we can show "Connected as foo@gmail.com"

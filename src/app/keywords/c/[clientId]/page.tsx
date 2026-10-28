@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/rank-source-badge";
 import { NeedsConnection } from "@/components/ui/needs-connection";
 import { RankSparkline } from "./rank-sparkline";
+import { PlannerPanel } from "@/app/clients/[id]/planner-panel";
+import { getAdsStatus } from "@/lib/google-ads";
 
 const deviceTone: Record<string, string> = {
   desktop: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
@@ -195,6 +197,8 @@ export default async function PerClientKeywordsPage({
   }
   quickWins.sort((a, b) => a.position - b.position);
 
+  const adsReady = (await getAdsStatus()).ready;
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <ClientToolHeader
@@ -231,8 +235,13 @@ export default async function PerClientKeywordsPage({
         }
       />
 
-      <ResearchForm clients={[{ id: client.id, name: client.name }]} />
+      <ResearchForm
+        clients={[{ id: client.id, name: client.name }]}
+        defaultCountry={client.country ?? "US"}
+      />
       <CsvImportExport clients={[{ id: client.id, name: client.name }]} />
+
+      {adsReady && <PlannerPanel clientId={client.id} />}
 
       {quickWins.length > 0 && (
         <section className="glass-apple relative overflow-hidden rounded-2xl">

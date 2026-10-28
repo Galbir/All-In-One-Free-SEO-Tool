@@ -295,6 +295,9 @@ function KeywordsStep({
             {state.gscRowsUsed > 0 && (
               <span>· {state.gscRowsUsed} from real GSC data</span>
             )}
+            {state.plannerUsed > 0 && (
+              <span>· {state.plannerUsed} from Google Keyword Planner</span>
+            )}
             {/* Where the words came from. The old version read one meta
                 tag and said nothing about it, so a client whose tag was
                 vague got bad keywords with no way to tell why. */}
@@ -352,6 +355,17 @@ function KeywordsStep({
                       {k.source === "gsc" && (
                         <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
                           GSC
+                        </span>
+                      )}
+                      {k.source === "planner" && (
+                        <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-sky-300">
+                          Planner
+                        </span>
+                      )}
+                      {k.volume !== undefined && (
+                        <span>
+                          {k.volume.toLocaleString()}/mo
+                          {k.competition ? ` · ${k.competition.toLowerCase()} comp.` : ""}
                         </span>
                       )}
                       {k.impressions !== undefined && (

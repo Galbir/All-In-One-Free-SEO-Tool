@@ -13,7 +13,9 @@
  *   4. **AI seed expansion** — if an AI provider is configured, the LLM
  *      proposes more seed phrases, shown the site's own vocabulary so it
  *      extends the range rather than inventing one.
- *   5. **Google autocomplete fan-out** — for every seed, alphabet + LSI
+ *   5. **Google Keyword Planner** — if Google Ads is connected, ideas with
+ *      real monthly search volume and competition for the seeds above.
+ *   6. **Google autocomplete fan-out** — for every seed, alphabet + LSI
  *      modifier expansion (the same engine the keyword research page uses).
  *
  * Order matters and it changed for a reason. Discovery used to start at
@@ -31,6 +33,12 @@
 import { researchKeywords, type KeywordSuggestion } from "./keyword-research";
 import { getGscTopQueries } from "./google-data";
 import { callAI } from "./ai-call";
+import {
+  generateKeywordIdeas,
+  getAdsStatus,
+  marketLanguage,
+  rankIdeas,
+} from "./google-ads";
 import { expandProductList, looksB2B } from "./product-list";
 import {
   readSiteVocabulary,
@@ -44,7 +52,8 @@ export type AutoKeywordSource =
   | "ai_seed"
   | "autocomplete"
   | "wikipedia"
-  | "reddit";
+  | "reddit"
+  | "planner";
 
 export type DiscoveredKeyword = {
   query: string;
@@ -55,6 +64,9 @@ export type DiscoveredKeyword = {
   /** When source=gsc, real impressions over last 28 days. */
   impressions?: number;
   position?: number;
+  /** When source=planner, average monthly searches from Google Ads. */
+  volume?: number;
+  competition?: "LOW" | "MEDIUM" | "HIGH" | null;
   isLocal: boolean;
   isLongTail: boolean;
 };
@@ -88,6 +100,8 @@ export async function discoverKeywords(
   keywords: DiscoveredKeyword[];
   seedsUsed: string[];
   gscRowsUsed: number;
+  /** Ideas that came from the Google Keyword Planner. */
+  plannerUsed: number;
   /** What reading the site produced, for provenance in the UI. */
   siteRead: {
     pagesRead: number;
@@ -198,6 +212,40 @@ export async function discoverKeywords(
   const HIJACK =
     /\b(discount code|coupon|promo code|voucher|redeem|mod apk|apk|cheat|hack|free spins|dice roll)\b/i;
 
+  // 3b. Google Keyword Planner (if Google Ads is connected): real volume
+  // and competition, so the list is ranked by demand and not only by
+  // wording. Any failure falls back to the free sources below.
+  let plannerUsed = 0;
+  try {
+    if ((await getAdsStatus()).ready) {
+      const ideas = await generateKeywordIdeas({
+        seeds: allSeeds.slice(0, 10),
+        country: input.country,
+        language: marketLanguage(input.country, null),
+        limit: 300,
+      });
+      for (const idea of rankIdeas(ideas, { minVolume: 20 }).slice(0, limit)) {
+        const key = idea.text.toLowerCase();
+        if (seenQueries.has(key)) continue;
+        if (HIJACK.test(key) && input.niche !== "ecommerce") continue;
+        seenQueries.set(
+          key,
+          scoreKeyword({
+            query: idea.text,
+            intent: classifyIntentSimple(idea.text),
+            source: "planner",
+            volume: idea.volume,
+            competition: idea.competition,
+            city: input.city,
+          }),
+        );
+        plannerUsed++;
+      }
+    }
+  } catch (err) {
+    console.warn(`[auto-keywords] planner skipped: ${(err as Error).message}`);
+  }
+
   // 4. Google autocomplete fan-out (small LSI mode for each seed)
   // Every seed gets a share, rather than the first one taking the lot.
   //
@@ -255,6 +303,7 @@ export async function discoverKeywords(
     keywords,
     seedsUsed: allSeeds,
     gscRowsUsed,
+    plannerUsed,
     siteRead: {
       pagesRead: vocab?.pagesRead ?? 0,
       termsFound: vocab?.terms.length ?? 0,
@@ -476,6 +525,8 @@ function scoreKeyword(opts: {
   source: AutoKeywordSource;
   impressions?: number;
   position?: number;
+  volume?: number;
+  competition?: DiscoveredKeyword["competition"];
   city?: string | null;
 }): DiscoveredKeyword {
   const wordCount = opts.query.trim().split(/\s+/).length;
@@ -492,6 +543,12 @@ function scoreKeyword(opts: {
     score = 45;
   } else if (opts.source === "autocomplete") {
     score = 35;
+  } else if (opts.source === "planner") {
+    // Real demand: 50 for a niche term up to ~75 for a big one, less
+    // where advertisers crowd it.
+    score = 50 + Math.min(25, Math.log10((opts.volume ?? 0) + 1) * 6);
+    if (opts.competition === "HIGH") score -= 8;
+    else if (opts.competition === "LOW") score += 4;
   }
 
   if (isLongTail) score += 10;
@@ -507,6 +564,8 @@ function scoreKeyword(opts: {
     score: Math.min(100, Math.max(0, Math.round(score))),
     impressions: opts.impressions,
     position: opts.position,
+    volume: opts.volume,
+    competition: opts.competition,
     isLongTail,
     isLocal,
   };

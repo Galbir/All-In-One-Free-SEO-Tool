@@ -37,8 +37,11 @@ const intentTone: Record<string, string> = {
 
 export function ResearchForm({
   clients,
+  defaultCountry = "US",
 }: {
   clients: { id: number; name: string }[];
+  /** The client's own market, so it is not picked again by hand. */
+  defaultCountry?: string;
 }) {
   const [state, formAction, pending] = useActionState<
     ResearchActionResult | null,
@@ -98,7 +101,7 @@ export function ResearchForm({
           <div className="space-y-1.5">
             <Label htmlFor="country">Country</Label>
             <CountrySelect
-              defaultValue={state?.ok ? state.country : "US"}
+              defaultValue={state?.ok ? state.country : defaultCountry}
               className="flex h-9 w-44 rounded-md border border-white/10 bg-card/60 px-3 py-1 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40"
             />
           </div>

@@ -19,6 +19,8 @@ import {
 } from "@/lib/google-oauth";
 import { getSetting } from "@/lib/settings-store";
 import { GoogleCredentialsForm } from "./credentials-form";
+import { GoogleAdsForm } from "./ads-form";
+import { getAdsStatus } from "@/lib/google-ads";
 import { ServiceAccountForm } from "./service-account-form";
 import { serviceAccountEmail } from "@/lib/google-service-account";
 import {
@@ -26,7 +28,11 @@ import {
   disconnectGoogleAccount,
 } from "./actions";
 
-type SearchParams = Promise<{ connected?: string; error?: string }>;
+type SearchParams = Promise<{
+  connected?: string;
+  error?: string;
+  ads?: string;
+}>;
 
 export default async function GoogleSettingsPage({
   searchParams,
@@ -39,6 +45,7 @@ export default async function GoogleSettingsPage({
   // Null when no key is saved. Drives which half of the form renders.
   const serviceAccountAddress = await serviceAccountEmail().catch(() => null);
   const clientSecret = await getSetting<string>("google.client_secret");
+  const ads = await getAdsStatus();
 
   // The URI shown here MUST equal what the auth-init route + callback
   // route send to Google. Shared helper enforces that. Divergence
@@ -74,6 +81,12 @@ export default async function GoogleSettingsPage({
           real numbers.
         </Banner>
       )}
+      {params.ads === "connected" && (
+        <Banner tone="success" icon={CheckCircle2}>
+          Google Ads is connected. Press <strong>Test Keyword Planner</strong>{" "}
+          below to check it.
+        </Banner>
+      )}
       {params.error && (
         <Banner tone="error" icon={AlertCircle}>
           Connection failed: <code className="font-mono">{params.error}</code>
@@ -102,6 +115,46 @@ GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-…`}</pre>
           of this instance benefits from it without doing the setup themselves.
         </Banner>
       )}
+
+      <Section title="Google Ads — Keyword Planner">
+        <p className="text-sm text-muted-foreground">
+          Lets blog schedules and the client page find keywords for you, from
+          Google&apos;s own Keyword Planner, instead of you adding tracked
+          keywords by hand. The API is free. You need a Google Ads account
+          (even one that never ran an ad), a developer token from{" "}
+          <em>Tools → API Center</em>, and the Google OAuth client from this
+          page. <strong>Connect Google Ads</strong> opens Google in your
+          browser and asks only for Ads access; it does not touch the Search
+          Console connection. Without ad spend Google reports volume as
+          ranges, which still ranks ideas against each other. Powered by the
+          open-source{" "}
+          <a
+            className="underline"
+            href="https://github.com/Opteo/google-ads-api"
+            target="_blank"
+            rel="noreferrer"
+          >
+            google-ads-api
+          </a>{" "}
+          library by Opteo, following the approach of{" "}
+          <a
+            className="underline"
+            href="https://github.com/lionkiii/google-searchconsole-mcp"
+            target="_blank"
+            rel="noreferrer"
+          >
+            gsc-mcp
+          </a>
+          .
+        </p>
+        <GoogleAdsForm
+          hasToken={ads.hasToken}
+          customerId={ads.customerId}
+          loginCustomerId={ads.loginCustomerId}
+          authorized={ads.authorized}
+          canConnect={status.credentialsSet}
+        />
+      </Section>
 
       {/* Why */}
       <Section title="Why connect Google?">

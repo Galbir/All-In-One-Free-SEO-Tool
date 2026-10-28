@@ -24,6 +24,7 @@ import {
   getCitationLandscape,
   getClientOverview,
   getKeywordRankings,
+  getKeywordIdeas,
   getRecentAgentRuns,
   listAgentActions,
   listAuditIssues,
@@ -101,6 +102,25 @@ const TOOLS = [
     },
     handler: (a: { clientId: number; days?: number; limit?: number }) =>
       getKeywordRankings(a),
+  },
+  {
+    name: "get_keyword_ideas",
+    description:
+      "Keyword ideas from Google Keyword Planner for a client's site and market, with real average monthly searches and competition, best demand with least competition first. Tracked keywords are left out. Needs Google Ads connected in Settings → Google; says so when it is not.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        clientId: { type: "number" },
+        limit: { type: "number", description: "Default 30, max 100." },
+        refresh: {
+          type: "boolean",
+          description: "Ask Google again instead of using the one-day cache.",
+        },
+      },
+      required: ["clientId"],
+    },
+    handler: (a: { clientId: number; limit?: number; refresh?: boolean }) =>
+      getKeywordIdeas(a),
   },
   {
     name: "get_ai_visibility",

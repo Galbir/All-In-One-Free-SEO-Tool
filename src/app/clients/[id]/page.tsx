@@ -71,6 +71,8 @@ import { DailyAutomationCard } from "./daily-automation-card";
 import { inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { Suspense } from "react";
+import { getAdsStatus } from "@/lib/google-ads";
+import { PlannerPanel } from "./planner-panel";
 import { Mail, Plug } from "lucide-react";
 
 const nicheLabels: Record<string, string> = {
@@ -303,6 +305,7 @@ export default async function ClientDetailPage({
   const applyStackAction = applyStackTemplates.bind(null, client.id);
   const { matched: matchedStacks } = pickStackTemplates(client.techStack);
   const googleStatus = await getGoogleConnectionStatus();
+  const adsStatus = await getAdsStatus();
   const googleClientId = await getSetting<string>("google.client_id");
   const googleClientSecret = await getSetting<string>("google.client_secret");
   const hdrs = await headers();
@@ -1009,6 +1012,14 @@ export default async function ClientDetailPage({
           }
         >
           <OrganicTrafficPanel propertyId={client.ga4PropertyId} />
+        </Suspense>
+      )}
+
+      {adsStatus.ready && (
+        <Suspense
+          fallback={<PanelSkeleton title="Asking Keyword Planner for ideas…" />}
+        >
+          <PlannerPanel clientId={client.id} />
         </Suspense>
       )}
 

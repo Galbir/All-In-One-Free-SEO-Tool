@@ -15,6 +15,11 @@ import {
   type GscKeyword,
 } from "./google-data";
 import { logActivity } from "./activity";
+import {
+  discoverClientKeywords,
+  getAdsStatus,
+  type KeywordIdea,
+} from "./google-ads";
 
 /**
  * The SEO agent — runs once per click (or scheduled), pulls every signal we
@@ -66,6 +71,8 @@ type AgentSignals = {
   recentAuditIssues: { type: string; message: string; severity: string; url: string }[];
   topQueries: GscKeyword[];
   quickWins: GscKeyword[];
+  /** Google Keyword Planner ideas with real volume; empty if Ads is not connected. */
+  plannerIdeas: KeywordIdea[];
 };
 
 export async function runSeoAgent(
@@ -84,7 +91,8 @@ export async function runSeoAgent(
   if (
     signals.recentAuditIssues.length === 0 &&
     signals.topQueries.length === 0 &&
-    signals.quickWins.length === 0
+    signals.quickWins.length === 0 &&
+    signals.plannerIdeas.length === 0
   ) {
     return {
       ok: false,
@@ -226,11 +234,22 @@ async function collectSignals(client: Client): Promise<AgentSignals> {
     ]);
   }
 
+  // Keyword Planner ideas (cached for a day; best-effort).
+  let plannerIdeas: KeywordIdea[] = [];
+  try {
+    if ((await getAdsStatus()).ready) {
+      plannerIdeas = await discoverClientKeywords(client.id, { limit: 15 });
+    }
+  } catch {
+    // Ads problems must never stop the agent.
+  }
+
   return {
     client,
     recentAuditIssues: issues,
     topQueries,
     quickWins,
+    plannerIdeas,
   };
 }
 
@@ -274,6 +293,21 @@ function buildUserPrompt(signals: AgentSignals): string {
         `- "${q.query}" — position ${q.position.toFixed(1)}, ${q.impressions} impressions, ${q.clicks} clicks, CTR ${(q.ctr * 100).toFixed(1)}%`,
       );
     }
+    lines.push("");
+  }
+
+  if (signals.plannerIdeas.length > 0) {
+    lines.push(
+      "# Keyword ideas with real demand (Google Keyword Planner, monthly searches in the client's market, not tracked yet)",
+    );
+    for (const i of signals.plannerIdeas) {
+      lines.push(
+        `- "${i.text}" — ${i.volume} searches/month, competition ${i.competition?.toLowerCase() ?? "unknown"}`,
+      );
+    }
+    lines.push(
+      "Prefer these for content_idea suggestions and quote the volume in the rationale.",
+    );
     lines.push("");
   }
 
