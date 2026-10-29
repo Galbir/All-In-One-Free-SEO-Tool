@@ -18,6 +18,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dailySchedules, publishQueue, tasks, taskChats } from "@/db/schema";
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 import { buildBlogMarkdown } from "@/lib/blog-export";
 import { resolveTaskFolder } from "@/lib/task-chat/folder";
 import { writeDraft } from "@/lib/task-chat/drafts";
@@ -30,6 +31,8 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
   if (!isLocalRequest(req)) {
     return Response.json(
       { ok: false, error: "Opening Claude only works when you use the app on the computer that runs it." },

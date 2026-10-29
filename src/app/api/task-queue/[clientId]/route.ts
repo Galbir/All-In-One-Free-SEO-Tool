@@ -9,6 +9,7 @@
  */
 
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 import { startQueue, stopQueue } from "@/lib/task-chat/queue";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ type Ctx = { params: Promise<{ clientId: string }> };
 async function gate(req: Request, ctx: Ctx): Promise<{ clientId: number } | Response> {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
   if (!isLocalRequest(req)) {
     return Response.json(
       { ok: false, error: "The task queue only works when you use the app on the computer that runs it." },

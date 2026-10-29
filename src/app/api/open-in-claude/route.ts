@@ -22,6 +22,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, tasks } from "@/db/schema";
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,6 +37,8 @@ function promptFor(taskId: number): string {
 export async function POST(req: Request) {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
 
   if (!isLocalRequest(req)) {
     return Response.json(

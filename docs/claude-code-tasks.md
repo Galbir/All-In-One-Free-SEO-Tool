@@ -4,6 +4,23 @@ Clients whose site is a local project (Astro, Next.js, plain HTML) have no CMS f
 
 This only works when you use the app on the computer that runs it, signed in as the owner. Claude edits files and runs commands there, so every route refuses anything else.
 
+## Off by default
+
+Nothing below runs until you turn it on, in **Settings → Claude Code on this computer** or with `SEO_TOOL_HOST_AGENT=1` in the environment. While it is off the routes answer `403`, the Claude dock is not drawn, the autopilot skips clients that Claude Code would work, and nothing is spawned. `SEO_TOOL_HOST_AGENT=0` is a hard off that the Settings page cannot undo; put it in the `.env` or Dockerfile of any install other people can reach.
+
+### What runs on the host
+
+When it is on, the app starts these programs on the machine that runs it, with arguments passed as an array (no shell):
+
+| Program | When | Where |
+| --- | --- | --- |
+| `claude -p` | A task chat message, a queue run, the autopilot | The client's local project folder |
+| `git` | Branch, commit, push, in the pull-request modes | The same folder |
+| `gh` | Open, list, merge pull requests; list your repositories | The client's repository |
+| `osascript` / PowerShell / `zenity` | The folder picker; Open in Claude | Opens a window on the host's screen |
+
+They run as the operating-system user that runs the app, with that user's `claude` login and `gh` login, and `claude` may edit files in the project folder and run the commands listed in `src/lib/task-chat/workflow.ts`. The app stores no GitHub token. Anyone who can sign in to the dashboard (the owner account, or the shared password) can start them, which is why the routes also refuse any request that does not come from the same computer, and why this is off until you say otherwise.
+
 ## Set up a client
 
 On **Clients → Edit**:

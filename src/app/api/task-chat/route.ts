@@ -16,6 +16,7 @@ import { desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients, taskChats, tasks } from "@/db/schema";
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 import { isRunning } from "@/lib/task-chat/runner";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,8 @@ const RECENT = 12;
 export async function GET(req: Request) {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
   if (!isLocalRequest(req)) {
     return Response.json({ ok: false, error: "Only on the computer that runs the app." }, { status: 400 });
   }

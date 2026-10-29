@@ -27,6 +27,7 @@ import {
 } from "@/db/schema";
 import { logActivity } from "../activity";
 import { getAgentSettings, willAutoApply, type AgentSettings } from "./autonomy";
+import { HOST_AGENT_OFF_MESSAGE, isHostAgentEnabled } from "@/lib/host-agent";
 import { levelFor, pickEngine, runClaudeAutopilot } from "./claude-autopilot";
 import { detectCapabilities, has } from "./capabilities";
 import {
@@ -146,6 +147,10 @@ export async function runAgentForClient(opts: {
     (settings.level === "apply_safe" || settings.level === "apply_all") &&
     pickEngine(client) === "claude"
   ) {
+    // This client is worked on by Claude Code on this machine, and that is
+    // off unless somebody switched it on: say so instead of falling through
+    // to the site's plugin, which this client may not have.
+    if (!isHostAgentEnabled()) return empty(opts.clientId, HOST_AGENT_OFF_MESSAGE);
     const r = await runClaudeAutopilot({ client, level: settings.level, settings, trigger });
     return {
       ...empty(opts.clientId, r.summary),

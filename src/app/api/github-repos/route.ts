@@ -19,6 +19,7 @@ import { existsSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { promisify } from "node:util";
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 import { normalizeGithubRepo } from "@/lib/github-repo";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,8 @@ async function suggestedFromFolder(path: string | null): Promise<{ repo: string;
 export async function GET(req: Request) {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
   if (!isLocalRequest(req)) {
     return Response.json(
       { ok: false, code: "remote", error: "GitHub can only be connected from the computer that runs the app." },

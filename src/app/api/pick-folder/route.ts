@@ -23,6 +23,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync, statSync } from "node:fs";
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 
 const exec = promisify(execFile);
 
@@ -160,6 +161,8 @@ async function pick(start: string): Promise<string | null> {
 export async function POST(req: Request) {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
 
   // guardAdminRequest lets a signed-in owner through from anywhere; the
   // dialog still has to appear on the screen the person is looking at.

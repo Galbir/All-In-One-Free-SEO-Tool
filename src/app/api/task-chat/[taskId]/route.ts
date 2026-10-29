@@ -18,6 +18,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db/client";
 import { taskChatEvents, taskChats } from "@/db/schema";
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 import { firstPrompt, resolveTaskFolder } from "@/lib/task-chat/folder";
 import { withAttachments } from "@/lib/task-chat/attachments";
 import { isRunning, reconcile, startTurn, stopTurn, subscribe, type LiveMessage } from "@/lib/task-chat/runner";
@@ -32,6 +33,8 @@ type Ctx = { params: Promise<{ taskId: string }> };
 async function gate(req: Request, ctx: Ctx): Promise<{ taskId: number } | Response> {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
   if (!isLocalRequest(req)) {
     return Response.json(
       { ok: false, error: "Claude chat only works when you use the app on the computer that runs it." },

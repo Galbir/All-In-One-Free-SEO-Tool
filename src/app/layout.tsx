@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { isHostAgentEnabled } from "@/lib/host-agent";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { Sidebar } from "@/components/shell/sidebar";
@@ -155,7 +156,7 @@ export default async function RootLayout({
                 </div>
                 <AIAssistant />
                 <PowerWidget />
-                <ClaudeDock />
+                {isHostAgentEnabled() && <ClaudeDock />}
                 <FirstRunPrompt />
               </>
             )}

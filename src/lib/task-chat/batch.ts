@@ -9,11 +9,17 @@
  * fixed commands, and the model does not need to be trusted with them.
  */
 
+import { assertHostAgentEnabled } from "@/lib/host-agent";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { isSafeBranch, normalizeGithubRepo } from "@/lib/github-repo";
 
-const exec = promisify(execFile);
+const run = promisify(execFile);
+// gh and git run on the host, so they obey the same switch as Claude itself.
+const exec = ((...args: Parameters<typeof run>) => {
+  assertHostAgentEnabled();
+  return run(...args);
+}) as typeof run;
 const GH = process.platform === "win32" ? "gh.exe" : "gh";
 
 export type BatchRun = {

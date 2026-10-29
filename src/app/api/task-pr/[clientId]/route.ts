@@ -13,6 +13,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { clients } from "@/db/schema";
 import { guardAdminRequest, isLocalRequest } from "@/lib/admin-auth";
+import { hostAgentGuard } from "@/lib/host-agent";
 import { listTaskPrs, mergeAllReady, mergeTaskPr } from "@/lib/task-chat/pull-requests";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ type Ctx = { params: Promise<{ clientId: string }> };
 async function gate(req: Request, ctx: Ctx): Promise<{ repo: string; base: string } | Response> {
   const denied = await guardAdminRequest(req);
   if (denied) return denied;
+  const off = hostAgentGuard();
+  if (off) return off;
   if (!isLocalRequest(req)) {
     return Response.json(
       { ok: false, error: "Pull requests can only be managed from the computer that runs the app." },

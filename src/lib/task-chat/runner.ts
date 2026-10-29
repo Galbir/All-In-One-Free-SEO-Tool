@@ -18,6 +18,7 @@
  * nothing the browser sent is ever part of a command line.
  */
 
+import { HOST_AGENT_OFF_MESSAGE, isHostAgentEnabled } from "@/lib/host-agent";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { eq } from "drizzle-orm";
@@ -174,6 +175,7 @@ export function startTurn(
   message: string,
   workflow: Workflow,
 ): { ok: true } | { ok: false; error: string } {
+  if (!isHostAgentEnabled()) return { ok: false, error: HOST_AGENT_OFF_MESSAGE };
   if (reg.procs.has(taskId)) return { ok: false, error: "Claude is already working on this task." };
 
   const [chat] = db.select().from(taskChats).where(eq(taskChats.taskId, taskId)).all();
